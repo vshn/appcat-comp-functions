@@ -1,14 +1,25 @@
+FROM golang:1.20-alpine as Build
+
+ARG INSTANCE=""
+
+WORKDIR /app
+
+COPY . ./
+RUN go mod download
+
+RUN cd "cmd/$INSTANCE" && CGO_ENABLED=0 go build -o functionio .
+
 FROM docker.io/library/alpine:3.17 as runtime
+
+ARG INSTANCE=""
 
 RUN \
   apk add --update --no-cache \
-    bash \
-    curl \
-    ca-certificates \
-    tzdata
+  bash \
+  curl \
+  ca-certificates \
+  tzdata
 
-# TODO: Adjust binary file name
-ENTRYPOINT ["go-bootstrap"]
-COPY go-bootstrap /usr/bin/
-
-USER 65536:0
+ENTRYPOINT ["functionio"]
+CMD ["--log-level", "1"]
+COPY --from=Build /app/cmd/$INSTANCE/functionio /usr/bin/
