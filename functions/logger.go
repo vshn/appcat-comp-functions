@@ -1,4 +1,4 @@
-package main
+package functions
 
 import (
 	"fmt"
@@ -13,34 +13,39 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type AppInfo struct {
+	Version, Commit, Date, AppName, AppLongName string
+}
+
 // LogMetadata prints various metadata to the root logger.
 // It prints version, architecture and current user ID and returns nil.
-func LogMetadata(c *cli.Context) error {
+func LogMetadata(c *cli.Context, a AppInfo) error {
 	log := logr.FromContextOrDiscard(c.Context)
 	log.WithValues(
-		"version", version,
-		"date", date,
-		"commit", commit,
+		"version", a.Version,
+		"date", a.Date,
 		"go_os", runtime.GOOS,
 		"go_arch", runtime.GOARCH,
 		"go_version", runtime.Version(),
 		"uid", os.Getuid(),
 		"gid", os.Getgid(),
-	).Info("Starting up " + appName)
+	).Info("Starting up " + a.AppName)
 	return nil
 }
 
-func setupLogging(c *cli.Context) error {
-	log, err := newZapLogger(appName, c.Int(newLogLevelFlag().Name), usesProductionLoggingConfig(c))
-	c.Context = logr.NewContext(c.Context, log)
-	return err
+func SetupLogging(a AppInfo) func(*cli.Context) error {
+	return func(c *cli.Context) error {
+		log, err := newZapLogger(a.AppName, a.Version, c.Int(NewLogLevelFlag().Name), usesProductionLoggingConfig(c))
+		c.Context = logr.NewContext(c.Context, log)
+		return err
+	}
 }
 
 func usesProductionLoggingConfig(c *cli.Context) bool {
-	return strings.EqualFold("JSON", c.String(newLogFormatFlag().Name))
+	return strings.EqualFold("JSON", c.String(NewLogFormatFlag().Name))
 }
 
-func newZapLogger(name string, verbosityLevel int, useProductionConfig bool) (logr.Logger, error) {
+func newZapLogger(name, version string, verbosityLevel int, useProductionConfig bool) (logr.Logger, error) {
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.ConsoleSeparator = " | "
 	if useProductionConfig {
