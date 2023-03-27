@@ -12,8 +12,8 @@ type vshnPostgresURL struct{}
 func NewVshnPostgresURL() *cli.Command {
 	command := &vshnPostgresURL{}
 	return &cli.Command{
-		Name:   "vshn-postgres-url",
-		Usage:  "Start VSHN Postgres URL",
+		Name:   "vshn-postgres-url-function-io",
+		Usage:  "Start VSHN Postgres URL Function IO",
 		Action: command.execute,
 	}
 }
@@ -21,6 +21,6 @@ func NewVshnPostgresURL() *cli.Command {
 func (c *vshnPostgresURL) execute(ctx *cli.Context) error {
 	_ = functions.LogMetadata(ctx, A)
 	log := logr.FromContextOrDiscard(ctx.Context).WithName(ctx.Command.Name)
-	log.Info("Executing FunctionIO VSHN Postgres URL", "config", c)
+	log.Info("Executing FunctionIO - VSHN Postgres URL", "config", c)
 	return src.Exec(ctx.Context, transform)
 }

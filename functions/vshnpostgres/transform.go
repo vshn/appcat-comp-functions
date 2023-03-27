@@ -30,7 +30,8 @@ func transform(ctx context.Context, iof *src.IO, comp *vshnv1.VSHNPostgreSQL) (*
 
 	log.Info("Getting connection secret from managed kubernetes object")
 	s := &v1.Secret{}
-	err := iof.GetFromKubeObject(s, comp.Name+"-connection")
+	kon := comp.Name + "-connection"
+	err := iof.GetFromKubeObject(ctx, s, kon)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get connection secret object: %w", err)
 	}
@@ -42,7 +43,7 @@ func transform(ctx context.Context, iof *src.IO, comp *vshnv1.VSHNPostgreSQL) (*
 	}
 
 	log.Info("Updating desired FunctionIO state")
-	err = iof.PutIntoKubeObject(s, comp.Name+"-connection")
+	err = iof.PutIntoKubeObject(ctx, s, kon)
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +64,6 @@ func addPostgresURL(ctx context.Context, s *v1.Secret) error {
 	if user == "" || pwd == "" || host == "" || port == "" || db == "" {
 		log.Info("User, pass, host, port or db value is missing from connection secret, skipping transformation")
 		return nil
-	}
-	if len(s.Data) == 0 {
-		return fmt.Errorf("no data found in connection secret")
 	}
 
 	s.Data[PostgresqlUrl] = []byte("postgres://" + user + ":" + pwd + "@" + host + ":" + port + "/" + db)

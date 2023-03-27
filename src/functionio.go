@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
+	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -29,21 +30,12 @@ func init() {
 
 var ErrNotFound = errors.New("not found")
 
-// IO a struct which encapsulates crossplane FunctionIO and necessary k8s schemas
-type IO struct {
-	F xfnv1alpha1.FunctionIO
-}
+// IO a struct which encapsulates crossplane FunctionIO
+type IO xfnv1alpha1.FunctionIO
 
 // NewFunctionIO creates a new IO object.
 func NewFunctionIO(ctx context.Context) (*IO, error) {
 	log := controllerruntime.LoggerFrom(ctx)
-
-	funcIO := xfnv1alpha1.FunctionIO{}
-
-	s := runtime.NewScheme()
-	corev1.SchemeBuilder.AddToScheme(s)
-	xkube.SchemeBuilder.SchemeBuilder.AddToScheme(s)
-	vshnv1.SchemeBuilder.SchemeBuilder.AddToScheme(s)
 
 	log.V(1).Info("Reading from stdin")
 	x, err := io.ReadAll(os.Stdin)
@@ -52,19 +44,23 @@ func NewFunctionIO(ctx context.Context) (*IO, error) {
 	}
 
 	log.V(1).Info("Unmarshalling FunctionIO from stdin")
+	funcIO := IO{}
 	err = yaml.Unmarshal(x, &funcIO)
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshall function io: %w", err)
 	}
-	return &IO{
-		F: funcIO,
-	}, nil
+
+	return &funcIO, nil
 }
 
-func (in *IO) GetFromKubeObject(resource client.Object, kubeObjectName string) error {
+// GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon
+func (in *IO) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
+	log := controllerruntime.LoggerFrom(ctx)
+
+	log.V(1).Info("Creating kube object from name and unmarshalling it", "kube object", kon)
 	ko := &xkube.Object{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: kubeObjectName,
+			Name: kon,
 		},
 	}
 	err := in.get(ko)
@@ -72,7 +68,8 @@ func (in *IO) GetFromKubeObject(resource client.Object, kubeObjectName string) e
 		return fmt.Errorf("cannot get unmarshall kubernetes object: %w", err)
 	}
 
-	return in.fromKubeObject(ko, resource)
+	log.V(1).Info("Unmarshalling object from kube object", "object type", reflect.TypeOf(o))
+	return in.fromKubeObject(ko, o)
 }
 
 func (in *IO) fromKubeObject(kobj *xkube.Object, obj client.Object) error {
@@ -82,8 +79,12 @@ func (in *IO) fromKubeObject(kobj *xkube.Object, obj client.Object) error {
 	return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
 }
 
-func (in *IO) PutIntoKubeObject(resource client.Object, kubeObjectName string) error {
-	ko, err := in.updateKubeObject(resource, kubeObjectName)
+// PutIntoKubeObject adds or updates the desired resource into its kube object
+func (in *IO) PutIntoKubeObject(ctx context.Context, o client.Object, kon string) error {
+	log := controllerruntime.LoggerFrom(ctx)
+
+	log.V(1).Info("Put object into kube object", "object", o, "kube object name", kon)
+	ko, err := in.updateKubeObject(o, kon)
 	if err != nil {
 		return err
 	}
@@ -103,14 +104,14 @@ func (in *IO) put(obj client.Object) error {
 		return err
 	}
 
-	for i, res := range in.F.Desired.Resources {
+	for i, res := range in.Desired.Resources {
 		if res.Name == name {
-			in.F.Desired.Resources[i].Resource.Raw = rawData
+			in.Desired.Resources[i].Resource.Raw = rawData
 			return nil
 		}
 	}
 
-	in.F.Desired.Resources = append(in.F.Desired.Resources, xfnv1alpha1.DesiredResource{
+	in.Desired.Resources = append(in.Desired.Resources, xfnv1alpha1.DesiredResource{
 		Name: name,
 		Resource: runtime.RawExtension{
 			Raw: rawData,
@@ -150,9 +151,9 @@ func (in *IO) updateKubeObject(obj client.Object, kubeObjectName string) (*xkube
 
 func (in *IO) get(obj client.Object) error {
 	name := obj.GetName()
-	for i, res := range in.F.Desired.Resources {
+	for i, res := range in.Desired.Resources {
 		if res.Name == name {
-			return yaml.Unmarshal(in.F.Desired.Resources[i].Resource.Raw, obj)
+			return yaml.Unmarshal(in.Desired.Resources[i].Resource.Raw, obj)
 		}
 	}
 	return ErrNotFound
