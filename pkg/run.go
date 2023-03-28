@@ -1,10 +1,9 @@
-package src
+package pkg
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -14,7 +13,7 @@ import (
 func Exec[T any, O interface {
 	client.Object
 	*T
-}](ctx context.Context, transform func(c context.Context, io *IO, obj O) (O, error), sb ...runtime.SchemeBuilder) error {
+}](ctx context.Context, transform func(c context.Context, io *IO, obj O) (O, error)) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	log.V(1).Info("Preparing to get FunctionIO from stdin")

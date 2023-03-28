@@ -1,9 +1,9 @@
-package main
+package url
 
 import (
 	"context"
 	"fmt"
-	"github.com/vshn/appcat-comp-functions/src"
+	"github.com/vshn/appcat-comp-functions/pkg"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	v1 "k8s.io/api/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -19,7 +19,7 @@ var (
 )
 
 // transform changes the desired state of a FunctionIO
-func transform(ctx context.Context, iof *src.IO, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
+func transform(ctx context.Context, iof *pkg.IO, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	// Wait for the next reconciliation in case instance namespace is missing
