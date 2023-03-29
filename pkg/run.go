@@ -49,6 +49,8 @@ func Exec[T any, O interface {
 		return fmt.Errorf("failed to marshal function io: %w", err)
 	}
 
-	log.V(1).Info("Output", "functionIO", string(fnc))
-	return nil
+	sfnc := string(fnc)
+	log.V(1).Info("Output", "functionIO", sfnc)
+	_, err = fmt.Println(sfnc)
+	return err
 }

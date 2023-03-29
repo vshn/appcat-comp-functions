@@ -7,8 +7,8 @@ RUN \
     ca-certificates \
     tzdata
 
-# TODO: Adjust binary file name
-ENTRYPOINT ["go-bootstrap"]
-COPY go-bootstrap /usr/bin/
+ENTRYPOINT ["vshn-postgres-func"]
+CMD ["--log-level", "1"]
+COPY vshn-postgres-func /usr/bin/
 
 USER 65536:0

@@ -4,7 +4,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/urfave/cli/v2"
 	"github.com/vshn/appcat-comp-functions/pkg"
-	"github.com/vshn/appcat-comp-functions/pkg/functions/vshn-postgres"
+	"github.com/vshn/appcat-comp-functions/pkg/functions/vshn-postgres-func"
 )
 
 type vshnPostgresURL struct{}

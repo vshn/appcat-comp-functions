@@ -1,5 +1,4 @@
-# TODO: Adjust project meta
-name: go-bootstrap
+name: appcat-comp-functions
 title: Go Bootstrap
 version: master
 start_page: ROOT:index.adoc

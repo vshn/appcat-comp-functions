@@ -23,17 +23,32 @@ golangci_bin = $(go_bin)/golangci-lint
 help: ## Show this help
 	@grep -E -h '\s##\s' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
+## BUILD an instance
 .PHONY: build
 build: build-bin build-docker ## All-in-one build
 
 .PHONY: build-bin
 build-bin: export CGO_ENABLED = 0
+build-bin: export GOOS = linux
+build-bin: export GARCH = amd64
 build-bin: fmt vet ## Build binary
-	@go build -o $(BIN_FILENAME) .
+	@go build -o $(PROJECT_ROOT_DIR)/cmd/$(instance)/$(BIN_FILENAME) $(PROJECT_ROOT_DIR)/cmd/$(instance)
 
 .PHONY: build-docker
 build-docker: build-bin ## Build docker image
-	$(DOCKER_CMD) build -t $(CONTAINER_IMG) .
+	$(DOCKER_CMD) build -t $(CONTAINER_IMG) $(PROJECT_ROOT_DIR)/cmd/$(instance)
+
+## BUILD all instances
+.PHONY: build-all
+build-all: build-bin-all build-docker-all ## All-in-one build for all instances
+
+.PHONY: build-bin-all
+build-bin-all: recursive_target=build-bin
+build-bin-all: $(instances) ## Build binaries
+
+.PHONY: build-docker-all
+build-docker-all: recursive_target=build-docker
+build-docker-all: $(instances) ## Build docker images
 
 .PHONY: test
 test: test-go ## All-in-one test
@@ -68,8 +83,18 @@ generate: ## Generate additional code and artifacts
 
 .PHONY: clean
 clean: kind-clean ## Cleans local build artifacts
-	docker rmi $(CONTAINER_IMG) || true
+clean: recursive_target=.clean-build-img
+clean: $(instances)
 	rm -rf docs/node_modules $(docs_out_dir) dist .cache $(WORK_DIR)
+
+.PHONY: .clean-build-img
+.clean-build-img:
+	docker rmi $(CONTAINER_IMG) -f || true
+	rm $(PROJECT_ROOT_DIR)/cmd/$(instance)/$(BIN_FILENAME)
 
 $(golangci_bin): | $(go_bin)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go_bin)"
+
+.PHONY: $(instances)
+$(instances):
+	$(MAKE) $(recursive_target) -e instance=$(basename $(@F))

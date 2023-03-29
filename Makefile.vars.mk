@@ -1,14 +1,17 @@
 ## These are some common variables for Make
 
 PROJECT_ROOT_DIR = .
-# TODO: Adjust project meta
-PROJECT_NAME ?= go-bootstrap
+PROJECT_NAME ?= appcat-comp-functions
 PROJECT_OWNER ?= vshn
 
 WORK_DIR = $(PWD)/.work
 
+## BUILD
+instance ?= vshn-postgres-func
+instances ?= vshn-postgres-func
+
 ## BUILD:go
-BIN_FILENAME ?= $(PROJECT_NAME)
+BIN_FILENAME ?= $(instance)
 go_bin ?= $(WORK_DIR)/bin
 $(go_bin):
 	@mkdir -p $@
@@ -16,9 +19,10 @@ $(go_bin):
 ## BUILD:docker
 DOCKER_CMD ?= docker
 
+## BUILD:docker VSHN Postgres
 IMG_TAG ?= latest
 # Image URL to use all building/pushing image targets
-CONTAINER_IMG ?= ghcr.io/$(PROJECT_OWNER)/$(PROJECT_NAME):$(IMG_TAG)
+CONTAINER_IMG ?= ghcr.io/$(PROJECT_OWNER)/$(BIN_FILENAME):$(IMG_TAG)
 
 
 ## KIND:setup

@@ -59,6 +59,10 @@ func (in *IO) GetFromKubeObject(ctx context.Context, o client.Object, kon string
 
 	log.V(1).Info("Creating kube object from name and unmarshalling it", "kube object", kon)
 	ko := &xkube.Object{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       xkube.ObjectKind,
+			APIVersion: xkube.ObjectKindAPIVersion,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: kon,
 		},
@@ -151,9 +155,20 @@ func (in *IO) updateKubeObject(obj client.Object, kubeObjectName string) (*xkube
 
 func (in *IO) get(obj client.Object) error {
 	name := obj.GetName()
+	gvk := obj.GetObjectKind()
+
 	for i, res := range in.Desired.Resources {
 		if res.Name == name {
-			return yaml.Unmarshal(in.Desired.Resources[i].Resource.Raw, obj)
+			err := yaml.Unmarshal(in.Desired.Resources[i].Resource.Raw, obj)
+			if err != nil {
+				return fmt.Errorf("cannot unmarshall desired resource: %w", err)
+			}
+
+			// matching by name is not enough, group and kind should match
+			ogvk := obj.GetObjectKind()
+			if gvk == ogvk {
+				return nil
+			}
 		}
 	}
 	return ErrNotFound

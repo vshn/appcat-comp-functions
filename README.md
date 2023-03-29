@@ -1,12 +1,12 @@
-# go-bootstrap
+# appcat-comp-functions
 
-[![Build](https://img.shields.io/github/actions/workflow/status/vshn/go-bootstrap/.github/workflows/test.yml?branch=master)][build]
-![Go version](https://img.shields.io/github/go-mod/go-version/vshn/go-bootstrap)
-[![Version](https://img.shields.io/github/v/release/vshn/go-bootstrap)][releases]
-[![GitHub downloads](https://img.shields.io/github/downloads/vshn/go-bootstrap/total)][releases]
+[![Build](https://img.shields.io/github/actions/workflow/status/vshn/appcat-comp-functions/.github/workflows/test.yml?branch=master)][build]
+![Go version](https://img.shields.io/github/go-mod/go-version/vshn/appcat-comp-functions)
+[![Version](https://img.shields.io/github/v/release/vshn/appcat-comp-functions)][releases]
+[![GitHub downloads](https://img.shields.io/github/downloads/vshn/appcat-comp-functions/total)][releases]
 
-[build]: https://github.com/vshn/go-bootstrap/actions?query=workflow%3ATest
-[releases]: https://github.com/vshn/go-bootstrap/releases
+[build]: https://github.com/vshn/appcat-comp-functions/actions?query=workflow%3ATest
+[releases]: https://github.com/vshn/appcat-comp-functions/releases
 
 Template repository for common Go setups
 

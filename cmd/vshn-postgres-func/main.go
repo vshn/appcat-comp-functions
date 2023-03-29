@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"github.com/vshn/appcat-comp-functions/pkg"
-	vp "github.com/vshn/appcat-comp-functions/pkg/functions/vshn-postgres"
-	"github.com/vshn/appcat-comp-functions/pkg/functions/vshn-postgres/url"
+	vp "github.com/vshn/appcat-comp-functions/pkg/functions/vshn-postgres-func"
+	"github.com/vshn/appcat-comp-functions/pkg/functions/vshn-postgres-func/url"
 	"os"
 )
 
@@ -33,6 +33,7 @@ func newApp() *cli.App {
 		Commands: []*cli.Command{
 			url.NewVshnPostgresURL(),
 		},
+		DefaultCommand: "vshn-postgres-url",
 	}
 	return app
 }
