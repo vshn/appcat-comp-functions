@@ -532,9 +532,10 @@ desired:
             status: "True"
             type: Ready
           - lastTransitionTime: "2023-03-23T09:00:30Z"
-            message: 'update failed: cannot apply object: cannot patch object: admission webhook
-            "sgcluster.stackgres-operator.syn-stackgres-operator" denied the request: Decrease
-            of persistent volume size is not supported'
+            message: |
+              update failed: cannot apply object: cannot patch object: admission webhook
+              "sgcluster.stackgres-operator.syn-stackgres-operator" denied the request: Decrease
+              of persistent volume size is not supported'
             reason: ReconcileError
             status: "False"
             type: Synced

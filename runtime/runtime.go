@@ -186,3 +186,26 @@ func (in *Runtime) AddResult(severity xfnv1alpha1.Severity, message string) {
 		Message:  message,
 	})
 }
+
+// PutManagedRessource will add the object as is to the FunctionIO. It assumes
+// that the given object is adheres to Crossplane's ManagedResource model.
+func (in *Runtime) PutManagedRessource(obj client.Object) error {
+	return in.put(obj, obj.GetName())
+}
+
+// GetManagedRessource will unmarshall the managed resource with the given name into the
+// given object.
+func (in *Runtime) GetManagedRessource(resName string, obj client.Object) error {
+	return in.get(obj, resName)
+}
+
+// SetGroupVersionKind automatically populates the GVK of an object with
+// the current scheme.
+func SetGroupVersionKind(obj client.Object) error {
+	kind, _, err := s.ObjectKinds(obj)
+	if err != nil {
+		return err
+	}
+	obj.GetObjectKind().SetGroupVersionKind(kind[0])
+	return nil
+}
