@@ -29,14 +29,12 @@ build: build-bin build-docker ## All-in-one build
 
 .PHONY: build-bin
 build-bin: export CGO_ENABLED = 0
-build-bin: export GOOS = linux
-build-bin: export GARCH = amd64
 build-bin: fmt vet ## Build binary
 	@go build -o $(PROJECT_ROOT_DIR)/cmd/$(instance)/$(BIN_FILENAME) $(PROJECT_ROOT_DIR)/cmd/$(instance)
 
 .PHONY: build-docker
-build-docker: build-bin ## Build docker image
-	$(DOCKER_CMD) build -t $(CONTAINER_IMG) $(PROJECT_ROOT_DIR)/cmd/$(instance)
+build-docker: ## Build docker image
+	$(DOCKER_CMD) build -t $(CONTAINER_IMG) --build-arg INSTANCE=$(instance) .
 
 ## BUILD all instances
 .PHONY: build-all
