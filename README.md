@@ -26,7 +26,10 @@ This repository will build different docker images for different services. For t
 ```
 
 - `./cmd` contains the entry point boilerplate for each service.
-- `./pkg/functions` contains the actual logic for the function. Each transform should be in its own package.
+- `./functions` contains the actual logic for the function. Each transform should be in its own package.
+- `./runtime` contains a library with helper methods which helps with adding new functions. 
+
+Check out the docs to understand how functions from this repository work.
 
 ## Add a new function
 
@@ -34,11 +37,11 @@ The framework is designed to easily add new composition functions to any AppCat 
 
 To add a new function to PostgreSQL by VSHN:
 
-- Create a new package under `./pkg/functions/vshn-postgres-func`
+- Create a new package under `./functions/vshn-postgres-func`
 - Add the transform function to the list in `./cmd/vshn-postgres-func`
-- implement the actual `transform()` function by using the helper functions from `io.go`
+- implement the actual `Transform()` function by using the helper functions from `runtime/runtime.go`
 
-This architecture allows us to run all the functions with a single command. But for debugging and development purpose it's possible to run each function seperately, by using the `--function` flag.
+This architecture allows us to run all the functions with a single command. But for debugging and development purpose it's possible to run each function separately, by using the `--function` flag.
 
 ## Manually testing a function
 To test a function you can leverage the FunctionIO file in the `./test` folder.

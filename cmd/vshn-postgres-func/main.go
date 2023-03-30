@@ -12,7 +12,7 @@ import (
 
 var postgresFunctions = []runtime.Transform[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]{
 	{
-		Name:          "dummy",
+		Name:          "url-connection-detail",
 		TransformFunc: vp.Transform,
 	},
 }
