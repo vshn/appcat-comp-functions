@@ -84,10 +84,10 @@ func (in *Runtime) GetFromKubeObject(ctx context.Context, o client.Object, kon s
 }
 
 func (in *Runtime) fromKubeObject(kobj *xkube.Object, obj client.Object) error {
-	if kobj.Spec.ForProvider.Manifest.Raw == nil {
+	if kobj.Status.AtProvider.Manifest.Raw == nil {
 		return fmt.Errorf("no resource in kubernetes object")
 	}
-	return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
+	return json.Unmarshal(kobj.Status.AtProvider.Manifest.Raw, obj)
 }
 
 // PutIntoKubeObject adds or updates the desired resource into its kube object
@@ -161,9 +161,9 @@ func (in *Runtime) updateKubeObject(obj client.Object, ko *xkube.Object) error {
 func (in *Runtime) get(obj client.Object, resName string) error {
 	gvk := obj.GetObjectKind()
 
-	for i, res := range in.Desired.Resources {
+	for i, res := range in.Observed.Resources {
 		if res.Name == resName {
-			err := yaml.Unmarshal(in.Desired.Resources[i].Resource.Raw, obj)
+			err := yaml.Unmarshal(in.Observed.Resources[i].Resource.Raw, obj)
 			if err != nil {
 				return fmt.Errorf("cannot unmarshall desired resource: %w", err)
 			}
