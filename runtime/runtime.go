@@ -52,7 +52,7 @@ func getFunctionIO(ctx context.Context) (*Runtime, error) {
 	funcIO := Runtime{}
 	err = yaml.Unmarshal(x, &funcIO)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshall function io: %w", err)
+		return nil, fmt.Errorf("cannot unmarshal function io: %w", err)
 	}
 
 	return &funcIO, nil
@@ -76,7 +76,7 @@ func (in *Runtime) GetFromKubeObject(ctx context.Context, o client.Object, kon s
 	}
 	err := in.get(ko, kon)
 	if err != nil {
-		return fmt.Errorf("cannot get unmarshall kubernetes object: %w", err)
+		return fmt.Errorf("cannot get unmarshal kubernetes object: %w", err)
 	}
 
 	log.V(1).Info("Unmarshalling object from kube object", "object type", reflect.TypeOf(o))
@@ -165,7 +165,7 @@ func (in *Runtime) get(obj client.Object, resName string) error {
 		if res.Name == resName {
 			err := yaml.Unmarshal(in.Observed.Resources[i].Resource.Raw, obj)
 			if err != nil {
-				return fmt.Errorf("cannot unmarshall desired resource: %w", err)
+				return fmt.Errorf("cannot unmarshal desired resource: %w", err)
 			}
 
 			// matching by name is not enough, group and kind should match

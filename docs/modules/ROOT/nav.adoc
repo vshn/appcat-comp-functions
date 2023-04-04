@@ -12,4 +12,4 @@
 //* xref:references/example.adoc[Example Reference]
 
 .Explanation
-//* xref:explanations/example.adoc[Example Explanation]
+* xref:explanations/vshn-postgres.adoc[VSHN Postgres Functions]
