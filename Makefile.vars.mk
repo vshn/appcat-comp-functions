@@ -22,7 +22,7 @@ DOCKER_CMD ?= docker
 ## BUILD:docker VSHN Postgres
 IMG_TAG ?= latest
 # Image URL to use all building/pushing image targets
-CONTAINER_IMG ?= ghcr.io/$(PROJECT_OWNER)/$(BIN_FILENAME):$(IMG_TAG)
+CONTAINER_IMG ?= ghcr.io/$(PROJECT_OWNER)/$(PROJECT_NAME)/$(BIN_FILENAME):$(IMG_TAG)
 
 
 ## KIND:setup
