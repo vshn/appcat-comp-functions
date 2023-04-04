@@ -40,6 +40,9 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Push package image
+        run: make package-push -e IMG_TAG=${GITHUB_REF##*/}
+
       - name: Build changelog from PRs with labels
         id: build_changelog
         uses: mikepenz/release-changelog-builder-action@v3
@@ -57,7 +60,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v4
         with:
           args: release --release-notes .github/release-notes.md
-          workdir: ./cmd/vshn-postgres-func
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY: ghcr.io
