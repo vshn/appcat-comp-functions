@@ -29,8 +29,7 @@ func Exec[T any, O interface {
 	log.V(1).Info("Executing transformation function")
 	res, err := transform(ctx, log, iof, obj)
 	if err != nil {
-		iof.AddResult(xfnv1alpha1.SeverityFatal, err.Error())
-		// return fmt.Errorf("failed to run transform function: %w", err)
+		iof.AddResult(xfnv1alpha1.SeverityWarning, err.Error())
 	}
 
 	log.V(1).Info("Marshalling composite")
