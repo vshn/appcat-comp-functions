@@ -85,6 +85,10 @@ clean: recursive_target=.clean-build-img
 clean: $(instances)
 	rm -rf docs/node_modules $(docs_out_dir) dist .cache $(WORK_DIR)
 
+.PHONY: docker-push
+docker-push: build-docker ## Push docker image with the manager.
+	docker push $(CONTAINER_IMG)
+
 .PHONY: .clean-build-img
 .clean-build-img:
 	docker rmi $(CONTAINER_IMG) -f || true
