@@ -1,6 +1,6 @@
 name: appcat-comp-functions
 title: Go Bootstrap
-version: master
+version: "0.0"
 start_page: ROOT:index.adoc
 nav:
   - modules/ROOT/nav.adoc
