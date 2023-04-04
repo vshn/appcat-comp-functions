@@ -1,4 +1,4 @@
-package alerting
+package vshnpostgres
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Transform changes the desired state of a FunctionIO
-func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
+// AddUserAlerting adds user alerting to the PostgreSQL instance.
+func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
 
 	log.Info("Check if alerting references are set")
 

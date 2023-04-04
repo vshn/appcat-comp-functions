@@ -1,34 +1,26 @@
-//go:build integration
-
 package vshnpostgres
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"testing"
+
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
-	"github.com/vshn/appcat-comp-functions/runtime"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	v1 "k8s.io/api/core/v1"
-	"os"
-	"path/filepath"
-	"sigs.k8s.io/yaml"
-	"strings"
-	"testing"
 )
 
 func TestTransform_NoInstanceNamespace(t *testing.T) {
-	expectIo := getFunctionFromFile("01_expected_no-instance-namespace.yaml")
+	expectIo := getFunctionFromFile(t, "url/01_expected_no-instance-namespace.yaml")
 	expectVpu := &vshnv1.VSHNPostgreSQL{}
-	expectComp := getCompositeFromIO(expectIo, expectVpu)
+	expectComp := getCompositeFromIO(t, expectIo, expectVpu)
 
 	t.Run("WhenNoInstance_ThenNoErrorAndNoChanges", func(t *testing.T) {
 
 		//Given
-		io := getFunctionFromFile("01_input_no-instance-namespace.yaml")
+		io := getFunctionFromFile(t, "url/01_input_no-instance-namespace.yaml")
 		vpu := &vshnv1.VSHNPostgreSQL{}
-		comp := getCompositeFromIO(io, vpu)
+		comp := getCompositeFromIO(t, io, vpu)
 		ctx := context.Background()
 		log := logr.FromContextOrDiscard(ctx)
 
@@ -49,9 +41,9 @@ func TestTransform(t *testing.T) {
 	t.Run("WhenNormalIO_ThenAddPostgreSQLUrl", func(t *testing.T) {
 
 		//Given
-		io := getFunctionFromFile("02_input_function-io.yaml")
+		io := getFunctionFromFile(t, "url/02_input_function-io.yaml")
 		vpu := &vshnv1.VSHNPostgreSQL{}
-		comp := getCompositeFromIO(io, vpu)
+		comp := getCompositeFromIO(t, io, vpu)
 		ctx := context.Background()
 		log := logr.FromContextOrDiscard(ctx)
 
@@ -120,29 +112,4 @@ func TestGetPostgresURL(t *testing.T) {
 			assert.Equal(t, tc.expectUrl, url)
 		})
 	}
-}
-
-func getFunctionFromFile(file string) *runtime.Runtime {
-	p, _ := filepath.Abs(".")
-	before, _, _ := strings.Cut(p, "/functions")
-	dat, err := os.ReadFile(before + "/test/transforms/vshn-postgres/url/" + file)
-	if err != nil {
-		fmt.Errorf("cannot read test file %s: %w", file, err)
-	}
-
-	funcIO := runtime.Runtime{}
-	err = yaml.Unmarshal(dat, &funcIO)
-	if err != nil {
-		fmt.Errorf("cannot umarshal test file %s: %w", file, err)
-	}
-
-	return &funcIO
-}
-
-func getCompositeFromIO[T any](io *runtime.Runtime, obj *T) *T {
-	err := json.Unmarshal(io.Observed.Composite.Resource.Raw, obj)
-	if err != nil {
-		os.Exit(1)
-	}
-	return obj
 }

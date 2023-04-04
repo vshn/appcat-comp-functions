@@ -14,8 +14,10 @@ var postgresFunctions = []runtime.Transform[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNP
 	{
 		Name:          "url-connection-detail",
 		TransformFunc: vp.Transform,
-		Name:          "alerting",
-		TransformFunc: alerting.Transform,
+	},
+	{
+		Name:          "user-alerting",
+		TransformFunc: vp.AddUserAlerting,
 	},
 }
 

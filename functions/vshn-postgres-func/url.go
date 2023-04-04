@@ -3,6 +3,7 @@ package vshnpostgres
 import (
 	"context"
 	"fmt"
+
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/vshn/appcat-comp-functions/runtime"
@@ -43,7 +44,7 @@ func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp 
 	log.Info("Getting connection secret from managed kubernetes object")
 	s := &v1.Secret{}
 
-	err := iof.GetFromKubeObject(ctx, s, connectionSecretResourceName)
+	err := iof.GetFromObservedKubeObject(ctx, s, connectionSecretResourceName)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get connection secret object: %w", err)
 	}

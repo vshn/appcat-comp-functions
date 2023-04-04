@@ -1,23 +1,17 @@
-package alerting
+package vshnpostgres
 
 import (
 	"context"
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	"github.com/go-logr/logr"
 	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	"github.com/vshn/appcat-comp-functions/runtime"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
-	"sigs.k8s.io/yaml"
 )
 
-func TestTransform(t *testing.T) {
+func TestAddUserAlerting(t *testing.T) {
 	type args struct {
 		expectedFuncIO string
 		inputFuncIO    string
@@ -30,8 +24,8 @@ func TestTransform(t *testing.T) {
 		{
 			name: "GivenNoMonitoringParams_ThenExpectNoOutput",
 			args: args{
-				expectedFuncIO: "01-ThenExpectNoOutput.yaml",
-				inputFuncIO:    "01-GivenNoMonitoringParams.yaml",
+				expectedFuncIO: "alerting/01-ThenExpectNoOutput.yaml",
+				inputFuncIO:    "alerting/01-GivenNoMonitoringParams.yaml",
 			},
 			wantErr: false,
 		},
@@ -39,8 +33,8 @@ func TestTransform(t *testing.T) {
 			name:    "GivenConfigRefNoSecretRef_ThenExpectError",
 			wantErr: true,
 			args: args{
-				expectedFuncIO: "02-ThenExpectError.yaml",
-				inputFuncIO:    "02-GivenConfigRefNoSecretRef.yaml",
+				expectedFuncIO: "alerting/02-ThenExpectError.yaml",
+				inputFuncIO:    "alerting/02-GivenConfigRefNoSecretRef.yaml",
 			},
 		},
 	}
@@ -54,7 +48,7 @@ func TestTransform(t *testing.T) {
 			inComp := getCompositeFromIO(t, iof, comp)
 			expIof := getFunctionFromFile(t, tt.args.expectedFuncIO)
 
-			_, err := Transform(ctx, log, iof, inComp)
+			_, err := AddUserAlerting(ctx, log, iof, inComp)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -74,11 +68,11 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 	t.Run("GivenConfigRefAndSecret_ThenExpectOutput", func(t *testing.T) {
 
-		iof := getFunctionFromFile(t, "03-GivenConfigRefAndSecret.yaml")
+		iof := getFunctionFromFile(t, "alerting/03-GivenConfigRefAndSecret.yaml")
 		comp := &vshnv1.VSHNPostgreSQL{}
 		inComp := getCompositeFromIO(t, iof, comp)
 
-		_, err := Transform(ctx, log, iof, inComp)
+		_, err := AddUserAlerting(ctx, log, iof, inComp)
 		assert.NoError(t, err)
 
 		resName := "psql-alertmanagerconfig"
@@ -101,11 +95,11 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 
 	t.Run("GivenConfigTemplateAndSecret_ThenExpectOutput", func(t *testing.T) {
 
-		iof := getFunctionFromFile(t, "04-GivenConfigTemplateAndSecret.yaml")
+		iof := getFunctionFromFile(t, "alerting/04-GivenConfigTemplateAndSecret.yaml")
 		comp := &vshnv1.VSHNPostgreSQL{}
 		inComp := getCompositeFromIO(t, iof, comp)
 
-		_, err := Transform(ctx, log, iof, inComp)
+		_, err := AddUserAlerting(ctx, log, iof, inComp)
 		assert.NoError(t, err)
 
 		resName := "psql-alertmanagerconfig"
@@ -119,24 +113,4 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
 		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
 	})
-}
-
-func getFunctionFromFile(t assert.TestingT, file string) *runtime.Runtime {
-	p, _ := filepath.Abs(".")
-	before, _, _ := strings.Cut(p, "/functions")
-	dat, err := os.ReadFile(before + "/test/transforms/vshn-postgres/alerting/" + file)
-	assert.NoError(t, err)
-
-	funcIO := runtime.Runtime{}
-	err = yaml.Unmarshal(dat, &funcIO)
-	assert.NoError(t, err)
-
-	return &funcIO
-}
-
-func getCompositeFromIO[T any](t assert.TestingT, io *runtime.Runtime, obj *T) *T {
-	err := json.Unmarshal(io.Observed.Composite.Resource.Raw, obj)
-	assert.NoError(t, err)
-
-	return obj
 }
