@@ -5,7 +5,7 @@ ARG INSTANCE=""
 WORKDIR /app
 
 COPY . ./
-RUN go mod download
+RUN echo $(ls -a) && go mod download
 
 RUN cd "cmd/$INSTANCE" && CGO_ENABLED=0 go build -o functionio .
 
