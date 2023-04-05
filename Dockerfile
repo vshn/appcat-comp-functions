@@ -11,6 +11,10 @@ RUN cd "cmd/$INSTANCE" && CGO_ENABLED=0 go build -o functionio .
 
 FROM docker.io/library/alpine:3.17 as runtime
 
+LABEL org.opencontainers.image.source=https://github.com/vshn/appcat-comp-functions
+LABEL org.opencontainers.image.description="This repository has crossplane composition functions for appcat services"
+LABEL org.opencontainers.image.licenses=BSD-3-Clause
+
 ARG INSTANCE=""
 
 RUN \
