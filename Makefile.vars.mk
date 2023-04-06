@@ -6,6 +6,10 @@ PROJECT_OWNER ?= vshn
 
 WORK_DIR = $(PWD)/.work
 
+# For alpine image it is required the following env before building the application
+DOCKER_IMAGE_GOOS = linux
+DOCKER_IMAGE_GOARCH = amd64
+
 ## BUILD:go
 BIN_FILENAME ?= $(PROJECT_NAME)
 go_bin ?= $(WORK_DIR)/bin
