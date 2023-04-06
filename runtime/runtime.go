@@ -10,6 +10,7 @@ import (
 	"reflect"
 
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,39 @@ import (
 var s = runtime.NewScheme()
 
 type contextKey int
+
+type funcRessource interface {
+	GetName() string
+	GetRaw() []byte
+}
+
+// desiredRessource is a wrapper arround xfnv1alpha1.DesiredResource
+// so we can satisfy the funcRessource interface.
+type desiredRessource struct {
+	xfnv1alpha1.DesiredResource
+}
+
+func (d *desiredRessource) GetName() string {
+	return d.Name
+}
+
+func (d *desiredRessource) GetRaw() []byte {
+	return d.Resource.Raw
+}
+
+// observedResource is a wrapper arround xfnv1alpha1.ObservedResource
+// so we can satisfy the funcRessource interface.
+type observedResource struct {
+	xfnv1alpha1.ObservedResource
+}
+
+func (o *observedResource) GetName() string {
+	return o.Name
+}
+
+func (o *observedResource) GetRaw() []byte {
+	return o.Resource.Raw
+}
 
 // KeyFuncIO is the key to the context value where the functionIO pointer is stored
 const KeyFuncIO contextKey = iota
@@ -63,8 +97,27 @@ func AddToScheme(obj runtime.SchemeBuilder) error {
 	return obj.AddToScheme(s)
 }
 
-// GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon
-func (in *Runtime) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
+// GetFromObservedKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
+// from the observed array of the FunctionIO.
+func (in *Runtime) GetFromObservedKubeObject(ctx context.Context, o client.Object, kon string) error {
+	ko, err := in.getKubeObjectFrom(ctx, in.observedRessources(), o, kon)
+	if err != nil {
+		return err
+	}
+	return in.fromKubeObjectObserved(ko, o)
+}
+
+// GetFromDesiredKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
+// from the desired array of the FunctionIO.
+func (in *Runtime) GetFromDesiredKubeObject(ctx context.Context, o client.Object, kon string) error {
+	ko, err := in.getKubeObjectFrom(ctx, in.desiredRessources(), o, kon)
+	if err != nil {
+		return err
+	}
+	return in.fromKubeObjectDesired(ko, o)
+}
+
+func (in *Runtime) getKubeObjectFrom(ctx context.Context, ressources []funcRessource, o client.Object, kon string) (*xkube.Object, error) {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	log.V(1).Info("Creating kube object from name and unmarshalling it", "kube object", kon)
@@ -74,20 +127,47 @@ func (in *Runtime) GetFromKubeObject(ctx context.Context, o client.Object, kon s
 			APIVersion: xkube.ObjectKindAPIVersion,
 		},
 	}
-	err := in.get(ko, kon)
+	err := in.getFrom(ressources, ko, kon)
 	if err != nil {
-		return fmt.Errorf("cannot get unmarshal kubernetes object: %w", err)
+		return nil, fmt.Errorf("cannot get unmarshall kubernetes object: %w", err)
 	}
 
 	log.V(1).Info("Unmarshalling object from kube object", "object type", reflect.TypeOf(o))
-	return in.fromKubeObject(ko, o)
+	return ko, nil
 }
 
-func (in *Runtime) fromKubeObject(kobj *xkube.Object, obj client.Object) error {
+func (in *Runtime) desiredRessources() []funcRessource {
+	ressources := make([]funcRessource, len(in.Desired.Resources))
+
+	for i := range in.Desired.Resources {
+		ressources[i] = &desiredRessource{DesiredResource: in.Desired.Resources[i]}
+	}
+
+	return ressources
+}
+
+func (in *Runtime) observedRessources() []funcRessource {
+	ressources := make([]funcRessource, len(in.Observed.Resources))
+
+	for i := range in.Observed.Resources {
+		ressources[i] = &observedResource{ObservedResource: in.Observed.Resources[i]}
+	}
+
+	return ressources
+}
+
+func (in *Runtime) fromKubeObjectObserved(kobj *xkube.Object, obj client.Object) error {
 	if kobj.Status.AtProvider.Manifest.Raw == nil {
 		return fmt.Errorf("no resource in kubernetes object")
 	}
 	return json.Unmarshal(kobj.Status.AtProvider.Manifest.Raw, obj)
+}
+
+func (in *Runtime) fromKubeObjectDesired(kobj *xkube.Object, obj client.Object) error {
+	if kobj.Spec.ForProvider.Manifest.Raw == nil {
+		return fmt.Errorf("no resource in kubernetes object")
+	}
+	return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
 }
 
 // PutIntoKubeObject adds or updates the desired resource into its kube object
@@ -100,7 +180,7 @@ func (in *Runtime) PutIntoKubeObject(ctx context.Context, o client.Object, kon s
 			APIVersion: xkube.ObjectKindAPIVersion,
 		},
 	}
-	err := in.get(ko, kon)
+	err := in.getFrom(in.observedRessources(), ko, kon)
 	if err != nil {
 		return err
 	}
@@ -158,12 +238,12 @@ func (in *Runtime) updateKubeObject(obj client.Object, ko *xkube.Object) error {
 	return nil
 }
 
-func (in *Runtime) get(obj client.Object, resName string) error {
+func (in *Runtime) getFrom(ressources []funcRessource, obj client.Object, resName string) error {
 	gvk := obj.GetObjectKind()
 
-	for i, res := range in.Observed.Resources {
-		if res.Name == resName {
-			err := yaml.Unmarshal(in.Observed.Resources[i].Resource.Raw, obj)
+	for _, res := range ressources {
+		if res.GetName() == resName {
+			err := yaml.Unmarshal(res.GetRaw(), obj)
 			if err != nil {
 				return fmt.Errorf("cannot unmarshal desired resource: %w", err)
 			}
@@ -185,4 +265,68 @@ func (in *Runtime) AddResult(severity xfnv1alpha1.Severity, message string) {
 		Severity: severity,
 		Message:  message,
 	})
+}
+
+// PutManagedRessource will add the object as is to the FunctionIO desired array.
+// It assumes that the given object is adheres to Crossplane's ManagedResource model.
+func (in *Runtime) PutManagedRessource(obj client.Object) error {
+	return in.put(obj, obj.GetName())
+}
+
+// GetManagedRessourceFromObserved will unmarshall the managed resource with the given name into the given object.
+// It reads from the Observed array.
+func (in *Runtime) GetManagedRessourceFromObserved(resName string, obj client.Object) error {
+	return in.getFrom(in.observedRessources(), obj, resName)
+}
+
+// GetManagedRessourceFromDesired will unmarshall the resource from the desired array.
+// This will return any changes that a previous function has made to the desired array.
+func (in *Runtime) GetManagedRessourceFromDesired(resName string, obj client.Object) error {
+	return in.getFrom(in.desiredRessources(), obj, resName)
+}
+
+// SetGroupVersionKind automatically populates the GVK of an object with
+// the current scheme.
+func SetGroupVersionKind(obj client.Object) error {
+	kind, _, err := s.ObjectKinds(obj)
+	if err != nil {
+		return err
+	}
+	obj.GetObjectKind().SetGroupVersionKind(kind[0])
+	return nil
+}
+
+// AddObjectToXKube is a helper to wrap vanilla K8s objects into Objects of provider-kubernetes.
+// Useful if the outer object needs to manipulated before it can be applied to the desired FunctionIO.
+func AddObjectToXKube(objectName string, obj client.Object) (*xkube.Object, error) {
+
+	err := SetGroupVersionKind(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	rawData, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	xkobj := &xkube.Object{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: objectName,
+		},
+		Spec: xkube.ObjectSpec{
+			ForProvider: xkube.ObjectParameters{
+				Manifest: runtime.RawExtension{
+					Raw: rawData,
+				},
+			},
+			ResourceSpec: xpv1.ResourceSpec{
+				ProviderConfigReference: &xpv1.Reference{
+					Name: "kubernetes",
+				},
+			},
+		},
+	}
+
+	return xkobj, nil
 }
