@@ -159,13 +159,6 @@ observed:
             reason: Available
             status: "True"
             type: Ready
-          - lastTransitionTime: "2023-03-23T09:00:30Z"
-            message: 'update failed: cannot apply object: cannot patch object: admission webhook
-            "sgcluster.stackgres-operator.syn-stackgres-operator" denied the request: Decrease
-            of persistent volume size is not supported'
-            reason: ReconcileError
-            status: "False"
-            type: Synced
         pgconfigConditions:
           - lastTransitionTime: "2023-03-21T16:53:16Z"
             reason: Available
@@ -249,6 +242,20 @@ observed:
           writeConnectionSecretToRef:
             name: ""
             namespace: ""
+        status:
+          atProvider:
+            manifest:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: pgsql-connection
+                namespace: vshn-postgresql-pgsql-gc9x4
+              data:
+                POSTGRESQL_DB: cG9zdGdyZXM=
+                POSTGRESQL_HOST: cGdzcWwtYXBwMS1wcm9kLXpkejRzLnZzaG4tcG9zdGdyZXNxbC1wZ3NxbC1hcHAxLXByb2QtemR6NHMuc3ZjLmNsdXN0ZXIubG9jYWw=
+                POSTGRESQL_PASSWORD: NTY4MC0xNTI2LTRmMGQtYTAw
+                POSTGRESQL_PORT: NTQzMg==
+                POSTGRESQL_USER: cG9zdGdyZXM=
       connectionDetails:
         - fromConnectionSecretKey: ca.crt
           name: ca.crt

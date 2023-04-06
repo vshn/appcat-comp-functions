@@ -41,7 +41,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push docker image
-        run: make docker-push -e IMG_TAG=${GITHUB_REF##*/}
+        run: make push-docker -e IMG_TAG=${GITHUB_REF##*/}
 
       - name: Build changelog from PRs with labels
         id: build_changelog
@@ -63,4 +63,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.repository }}/vshn-postgres-func
+          IMAGE_NAME: ${{ github.repository }}
