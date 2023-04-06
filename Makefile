@@ -30,23 +30,11 @@ build: build-bin build-docker ## All-in-one build
 .PHONY: build-bin
 build-bin: export CGO_ENABLED = 0
 build-bin: fmt vet ## Build binary
-	@go build -o $(PROJECT_ROOT_DIR)/cmd/$(instance)/$(BIN_FILENAME) $(PROJECT_ROOT_DIR)/cmd/$(instance)
+	@go build -o $(BIN_FILENAME) .
 
 .PHONY: build-docker
-build-docker: ## Build docker image
-	$(DOCKER_CMD) build -t $(CONTAINER_IMG) --build-arg INSTANCE=$(instance) .
-
-## BUILD all instances
-.PHONY: build-all
-build-all: build-bin-all build-docker-all ## All-in-one build for all instances
-
-.PHONY: build-bin-all
-build-bin-all: recursive_target=build-bin
-build-bin-all: $(instances) ## Build binaries
-
-.PHONY: build-docker-all
-build-docker-all: recursive_target=build-docker
-build-docker-all: $(instances) ## Build docker images
+build-docker: build-bin ## Build docker image
+	$(DOCKER_CMD) build -t $(CONTAINER_IMG) .
 
 .PHONY: test
 test: test-go ## All-in-one test
@@ -81,22 +69,12 @@ generate: ## Generate additional code and artifacts
 
 .PHONY: clean
 clean: kind-clean ## Cleans local build artifacts
-clean: recursive_target=.clean-build-img
-clean: $(instances)
+	docker rmi $(CONTAINER_IMG) -f || true
 	rm -rf docs/node_modules $(docs_out_dir) dist .cache $(WORK_DIR)
 
-.PHONY: docker-push
+.PHONY: push-docker
 docker-push: build-docker ## Push docker image with the manager.
 	docker push $(CONTAINER_IMG)
 
-.PHONY: .clean-build-img
-.clean-build-img:
-	docker rmi $(CONTAINER_IMG) -f || true
-	rm $(PROJECT_ROOT_DIR)/cmd/$(instance)/$(BIN_FILENAME)
-
 $(golangci_bin): | $(go_bin)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go_bin)"
-
-.PHONY: $(instances)
-$(instances):
-	$(MAKE) $(recursive_target) -e instance=$(basename $(@F))

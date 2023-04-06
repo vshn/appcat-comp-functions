@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/urfave/cli/v2"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	"os"
 
-	"github.com/urfave/cli/v2"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 )
 
