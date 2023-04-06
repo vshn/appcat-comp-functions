@@ -2,20 +2,16 @@ package vshnpostgres
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/go-logr/logr"
 	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // AddUserAlerting adds user alerting to the PostgreSQL instance.
@@ -85,7 +81,7 @@ func deployAlertmanagerFromRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime
 		},
 	}
 
-	xkobj, err := addObjectToXKube(comp, "-alertmanagerconfig", ac)
+	xkobj, err := runtime.AddObjectToXKube(comp.Name+"-alertmanagerconfig", ac)
 	if err != nil {
 		return err
 	}
@@ -121,7 +117,7 @@ func deployAlertmanagerFromTemplate(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Ru
 		Spec: *comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate,
 	}
 
-	xkobj, err := addObjectToXKube(comp, "-alertmanagerconfig", ac)
+	xkobj, err := runtime.AddObjectToXKube(comp.Name+"-alertmanagerconfig", ac)
 	if err != nil {
 		return err
 	}
@@ -136,7 +132,7 @@ func deploySecretRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 			Namespace: comp.Status.InstanceNamespace,
 		},
 	}
-	xkobj, err := addObjectToXKube(comp, "-alertmanagerconfigsecret", secret)
+	xkobj, err := runtime.AddObjectToXKube(comp.Name+"-alertmanagerconfigsecret", secret)
 	if err != nil {
 		return err
 	}
@@ -158,37 +154,4 @@ func deploySecretRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	}
 
 	return iof.PutManagedRessource(xkobj)
-}
-
-func addObjectToXKube(comp *vshnv1.VSHNPostgreSQL, namesuffix string, obj client.Object) (*xkube.Object, error) {
-
-	err := runtime.SetGroupVersionKind(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	rawData, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	xkobj := &xkube.Object{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.Name + namesuffix,
-		},
-		Spec: xkube.ObjectSpec{
-			ForProvider: xkube.ObjectParameters{
-				Manifest: k8sruntime.RawExtension{
-					Raw: rawData,
-				},
-			},
-			ResourceSpec: xpv1.ResourceSpec{
-				ProviderConfigReference: &xpv1.Reference{
-					Name: "kubernetes",
-				},
-			},
-		},
-	}
-
-	return xkobj, nil
 }
