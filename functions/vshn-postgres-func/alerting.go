@@ -115,7 +115,7 @@ func deployAlertmanagerFromRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime
 func deployAlertmanagerFromTemplate(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	ac := &alertmanagerv1alpha1.AlertmanagerConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "postgresql-alertmanagerconfig",
+			Name:      comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
 			Namespace: comp.Status.InstanceNamespace,
 		},
 		Spec: *comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate,
