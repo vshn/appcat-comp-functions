@@ -10,8 +10,10 @@ observed:
           kubectl.kubernetes.io/last-applied-configuration: |
             {"apiVersion":"vshn.appcat.vshn.io/v1","kind":"VSHNPostgreSQL","metadata":{"annotations":{},"name":"pgsql","namespace":"glrf-test"},"spec":{"parameters":{"service":{"majorVersion":"15"}},"writeConnectionSecretToRef":{"name":"postgres-creds"}}}
         creationTimestamp: "2023-03-21T16:52:31Z"
+        deletionTimestamp: '2023-012-03T09:38:48Z'
         finalizers:
           - composite.apiextensions.crossplane.io
+          - appcat.io/deletionProtection
         generateName: pgsql-
         generation: 13
         labels:
@@ -37,6 +39,8 @@ observed:
           backup:
             retention: 6
             schedule: 0 22 * * *
+            deletionProtection: true
+            deletionRetention: 7
           maintenance:
             dayOfWeek: tuesday
             timeOfDay: "22:30:00"
@@ -567,6 +571,8 @@ desired:
             status: "True"
             type: Ready
   resources:
+    - name: cluster
+      resource: {}
     - name: connection
       resource:
         apiVersion: kubernetes.crossplane.io/v1alpha1

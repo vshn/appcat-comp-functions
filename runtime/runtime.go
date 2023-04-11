@@ -97,6 +97,11 @@ func AddToScheme(obj runtime.SchemeBuilder) error {
 	return obj.AddToScheme(s)
 }
 
+// GetScheme returns a pointer to the internally used scheme.
+func GetScheme() *runtime.Scheme {
+	return s
+}
+
 // GetFromObservedKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the observed array of the FunctionIO.
 func (in *Runtime) GetFromObservedKubeObject(ctx context.Context, o client.Object, kon string) error {
@@ -329,4 +334,16 @@ func AddObjectToXKube(objectName string, obj client.Object) (*xkube.Object, erro
 	}
 
 	return xkobj, nil
+}
+
+// RemoveFromDesired will remove the object with the given name from the array.
+func (in *Runtime) RemoveFromDesired(objectName string) error {
+
+	for i, res := range in.Desired.Resources {
+		if res.Name == objectName {
+			in.Desired.Resources = append(in.Desired.Resources[:i], in.Desired.Resources[i+1:]...)
+			return nil
+		}
+	}
+	return ErrNotFound
 }

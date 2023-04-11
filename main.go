@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/urfave/cli/v2"
+	"github.com/vshn/appcat-comp-functions/controller"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
-	"os"
 
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 )
@@ -37,22 +39,51 @@ func newApp() *cli.App {
 		Usage:   vp.AI.AppLongName,
 		Version: fmt.Sprintf("%s, revision=%s, date=%s", vp.AI.Version, vp.AI.Commit, vp.AI.Date),
 		Action:  run,
+		Before:  setupLogging,
 		Flags: []cli.Flag{
 			runtime.NewLogLevelFlag(),
 			runtime.NewLogFormatFlag(),
 			runtime.NewFunctionFlag(),
+		},
+		Commands: []*cli.Command{
+			{
+				Name:        "controller",
+				Description: "Runs the controller mode of the composition function runner",
+				Action:      controller.RunController,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "metrics-addr",
+						Value: ":8080",
+						Usage: "The address the metric endpoint binds to.",
+					},
+					&cli.StringFlag{
+						Name:  "health-addr",
+						Value: ":8081",
+						Usage: "The address the probe endpoint binds to.",
+					},
+					&cli.BoolFlag{
+						Name:  "leader-elect",
+						Value: false,
+						Usage: "Enable leader election for controller manager. " +
+							"Enabling this will ensure there is only one active controller manager.",
+					},
+				},
+			},
 		},
 	}
 	return app
 }
 
 func run(ctx *cli.Context) error {
+
+	return runtime.RunCommand(ctx, postgresFunctions)
+}
+
+func setupLogging(ctx *cli.Context) error {
 	err := runtime.SetupLogging(vp.AI, ctx)
 	if err != nil {
 		return err
 	}
 
-	_ = runtime.LogMetadata(ctx, vp.AI)
-
-	return runtime.RunCommand(ctx, postgresFunctions)
+	return runtime.LogMetadata(ctx, vp.AI)
 }
