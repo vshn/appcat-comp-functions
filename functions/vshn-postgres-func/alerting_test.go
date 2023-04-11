@@ -9,6 +9,7 @@ import (
 	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestAddUserAlerting(t *testing.T) {
@@ -85,6 +86,12 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
 		assert.NoError(t, iof.GetFromDesiredKubeObject(ctx, alertConfig, resName))
 		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
+
+		secretName := "psql-alertmanagerconfigsecret"
+		secret := &v1.Secret{}
+		assert.NoError(t, iof.GetFromDesiredKubeObject(ctx, secret, secretName))
+
+		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
 
 }
@@ -112,5 +119,11 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 		assert.NoError(t, iof.GetFromDesiredKubeObject(ctx, alertConfig, resName))
 		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
 		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
+
+		secretName := "psql-alertmanagerconfigsecret"
+		secret := &v1.Secret{}
+		assert.NoError(t, iof.GetFromDesiredKubeObject(ctx, secret, secretName))
+
+		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
 }
