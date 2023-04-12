@@ -25,10 +25,13 @@ var s = runtime.NewScheme()
 type contextKey int
 
 // Runtime a struct which encapsulates crossplane FunctionIO
-type Runtime struct {
-	Func     xfnv1alpha1.FunctionIO
-	Observed ObservedResources
-	Desired  DesiredResources
+type Runtime[T any, O interface {
+	client.Object
+	*T
+}] struct {
+	io       xfnv1alpha1.FunctionIO
+	Observed ObservedResources[T, O]
+	Desired  DesiredResources[T, O]
 }
 
 type Resource interface {
@@ -49,7 +52,10 @@ func init() {
 var ErrNotFound = errors.New("not found")
 
 // NewRuntime creates a new Runtime object.
-func NewRuntime(ctx context.Context) (*Runtime, error) {
+func NewRuntime[T any, O interface {
+	client.Object
+	*T
+}](ctx context.Context) (*Runtime[T, O], error) {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	log.V(1).Info("Reading from stdin")
@@ -59,13 +65,28 @@ func NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 
 	log.V(1).Info("Unmarshalling FunctionIO from stdin")
-	r := Runtime{}
-	err = yaml.Unmarshal(x, &r.Func)
-	r.Observed = ObservedResources{observedResources(r.Func.Observed.Resources)}
-	r.Desired = DesiredResources{desiredResources(r.Func.Desired.Resources)}
+	r := Runtime[T, O]{}
+	err = yaml.Unmarshal(x, &r.io)
+	r.Observed = ObservedResources[T, O]{Resources: observedResources(r.io.Observed.Resources)}
+	r.Desired = DesiredResources[T, O]{Resources: desiredResources(r.io.Desired.Resources)}
+
+	log.V(1).Info("Unmarshalling observed composite from FunctionIO")
+	var o T
+	observed := &o
+	err = json.Unmarshal(r.io.Observed.Composite.Resource.Raw, observed)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal function io: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal composite: %w", err)
 	}
+	r.Observed.Composite = observed
+
+	log.V(1).Info("Unmarshalling desired composite from FunctionIO")
+	var d T
+	desired := &d
+	err = json.Unmarshal(r.io.Observed.Composite.Resource.Raw, desired)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal composite: %w", err)
+	}
+	r.Desired.Composite = desired
 
 	return &r, nil
 }
@@ -155,8 +176,8 @@ func updateKubeObject(obj client.Object, ko *xkube.Object) error {
 
 // AddResult will add a new result to the results array.
 // These results will generate events on the composite.
-func (in *Runtime) AddResult(severity xfnv1alpha1.Severity, message string) {
-	in.Func.Results = append(in.Func.Results, xfnv1alpha1.Result{
+func (r *Runtime[T, O]) AddResult(severity xfnv1alpha1.Severity, message string) {
+	r.io.Results = append(r.io.Results, xfnv1alpha1.Result{
 		Severity: severity,
 		Message:  message,
 	})

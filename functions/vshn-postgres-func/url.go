@@ -33,12 +33,12 @@ var (
 // it cannot be matched to the metadata.name
 var connectionSecretResourceName = "connection"
 
-// Transform changes the desired state of a FunctionIO
-func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
+// AddUrlToConnectionDetails changes the desired state of a FunctionIO
+func AddUrlToConnectionDetails(ctx context.Context, log logr.Logger, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
 	// Wait for the next reconciliation in case instance namespace is missing
-	if comp.Status.InstanceNamespace == "" {
+	if iof.Observed.Composite.Status.InstanceNamespace == "" {
 		log.Info("Composite is missing instance namespace, skipping transformation")
-		return comp, nil
+		return nil
 	}
 
 	log.Info("Getting connection secret from managed kubernetes object")
@@ -46,19 +46,19 @@ func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp 
 
 	err := iof.Observed.GetFromKubeObject(ctx, s, connectionSecretResourceName)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get connection secret object: %w", err)
+		return fmt.Errorf("cannot get connection secret object: %w", err)
 	}
 
 	log.Info("Setting POSTRESQL_URL env variable into connection secret")
 	val := getPostgresURL(ctx, s)
 
-	iof.Func.Desired.Composite.ConnectionDetails =
-		append(iof.Func.Desired.Composite.ConnectionDetails, v1alpha1.ExplicitConnectionDetail{
+	iof.Desired.ConnectionDetails =
+		append(iof.Desired.ConnectionDetails, v1alpha1.ExplicitConnectionDetail{
 			Name:  PostgresqlUrl,
 			Value: val,
 		})
 
-	return comp, nil
+	return nil
 }
 
 func getPostgresURL(ctx context.Context, s *v1.Secret) string {

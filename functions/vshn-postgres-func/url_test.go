@@ -25,7 +25,7 @@ func TestTransform_NoInstanceNamespace(t *testing.T) {
 		log := logr.FromContextOrDiscard(ctx)
 
 		// When
-		comp, err := Transform(ctx, log, io, comp)
+		comp, err := AddUrlToConnectionDetails(ctx, log, io, comp)
 
 		// Then
 		assert.NoError(t, err)
@@ -48,11 +48,11 @@ func TestTransform(t *testing.T) {
 		log := logr.FromContextOrDiscard(ctx)
 
 		// When
-		actualComp, err := Transform(ctx, log, io, comp)
+		actualComp, err := AddUrlToConnectionDetails(ctx, log, io)
 
 		// Then
 		assert.NoError(t, err)
-		assert.Equal(t, expectURL, io.Func.Desired.Composite.ConnectionDetails[0].Value)
+		assert.Equal(t, expectURL, io.GetCompositeD().ConnectionDetails[0].Value)
 		assert.Equal(t, comp, actualComp)
 	})
 }

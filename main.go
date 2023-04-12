@@ -12,8 +12,8 @@ import (
 
 var postgresFunctions = []runtime.Transform[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]{
 	{
-		Name:          "url-connection-detail",
-		TransformFunc: vp.Transform,
+		Name:          "url-connection-details",
+		TransformFunc: vp.AddUrlToConnectionDetails,
 	},
 	{
 		Name:          "user-alerting",

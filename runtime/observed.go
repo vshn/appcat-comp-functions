@@ -6,14 +6,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ObservedResources struct {
-	resources *[]Resource
+type ObservedResources[T any, O interface {
+	client.Object
+	*T
+}] struct {
+	Resources         *[]Resource
+	Composite         O
+	ConnectionDetails []xfnv1alpha1.ExplicitConnectionDetail
 }
 
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the observed array of the FunctionIO.
-func (o *ObservedResources) GetFromKubeObject(ctx context.Context, obj client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, o.resources, obj, kon)
+func (o *ObservedResources[T, O]) GetFromKubeObject(ctx context.Context, obj client.Object, kon string) error {
+	ko, err := getKubeObjectFrom(ctx, o.Resources, obj, kon)
 	if err != nil {
 		return err
 	}
@@ -22,8 +27,8 @@ func (o *ObservedResources) GetFromKubeObject(ctx context.Context, obj client.Ob
 
 // GetManagedResource will unmarshall the managed resource with the given name into the given object.
 // It reads from the Observed array.
-func (o *ObservedResources) GetManagedResource(resName string, obj client.Object) error {
-	return getFrom(o.resources, obj, resName)
+func (o *ObservedResources[T, O]) GetManagedResource(resName string, obj client.Object) error {
+	return getFrom(o.Resources, obj, resName)
 }
 
 // observedResource is a wrapper around xfnv1alpha1.ObservedResource

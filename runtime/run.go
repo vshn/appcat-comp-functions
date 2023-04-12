@@ -16,37 +16,38 @@ import (
 func Exec[T any, O interface {
 	client.Object
 	*T
-}](ctx context.Context, log logr.Logger, iof *Runtime, transform func(c context.Context, log logr.Logger, io *Runtime, obj O) (O, error)) error {
-
-	log.V(1).Info("Unmarshalling composite from FunctionIO")
-	var t T
-	obj := &t
-	err := json.Unmarshal(iof.Func.Observed.Composite.Resource.Raw, obj)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal composite: %w", err)
-	}
+}](ctx context.Context, log logr.Logger, iof *Runtime[T, O], transform Transform[T, O]) error {
 
 	log.V(1).Info("Executing transformation function")
-	res, err := transform(ctx, log, iof, obj)
+	err := transform.TransformFunc(ctx, log, iof)
 	if err != nil {
 		iof.AddResult(xfnv1alpha1.SeverityWarning, err.Error())
 	}
 
-	log.V(1).Info("Marshalling composite")
-	raw, err := json.Marshal(res)
+	log.V(1).Info("Marshalling observed composite")
+	raw, err := json.Marshal(iof.Observed.Composite)
 	if err != nil {
-		return fmt.Errorf("failed to marshal composite: %w", err)
+		return fmt.Errorf("failed to marshal Desired composite: %w", err)
 	}
-	iof.Func.Desired.Composite.Resource.Raw = raw
+	iof.io.Observed.Composite.Resource.Raw = raw
+	iof.io.Observed.Composite.ConnectionDetails = iof.Observed.ConnectionDetails
+
+	log.V(1).Info("Marshalling desired composite")
+	dRaw, err := json.Marshal(iof.Desired.Composite)
+	if err != nil {
+		return fmt.Errorf("failed to marshal desired composite: %w", err)
+	}
+	iof.io.Desired.Composite.Resource.Raw = dRaw
+	iof.io.Desired.Composite.ConnectionDetails = iof.Desired.ConnectionDetails
 
 	return nil
 }
 
 // printFunctionIO prints the whole FunctionIO to stdout, so Crossplane can
 // pick it up again.
-func printFunctionIO(iof *Runtime, log logr.Logger) error {
+func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) error {
 	log.V(1).Info("Marshalling FunctionIO")
-	fnc, err := yaml.Marshal(iof.Func)
+	fnc, err := yaml.Marshal(iof)
 	if err != nil {
 		return fmt.Errorf("failed to marshal function io: %w", err)
 	}
@@ -59,46 +60,36 @@ func RunCommand[T any, O interface {
 	client.Object
 	*T
 }](ctx *cli.Context, transforms []Transform[T, O]) error {
+	log := logr.FromContextOrDiscard(ctx.Context)
 
-	funcIO, err := setup(ctx)
+	log.V(1).Info("Creating new runtime")
+	funcIO, err := NewRuntime[T, O](ctx.Context)
 	if err != nil {
 		return err
 	}
-
-	log := logr.FromContextOrDiscard(ctx.Context)
 
 	if ctx.String("function") != "" {
 		for _, function := range transforms {
 			if function.Name == ctx.String("function") {
 				log.Info("Starting single function", "name", function.Name)
-				err := Exec(ctx.Context, log, funcIO, function.TransformFunc)
+				err = Exec(ctx.Context, log, funcIO, function)
 				if err != nil {
 					return err
 				}
 			}
 		}
-		return printFunctionIO(funcIO, log)
+		return printFunctionIO(&funcIO.io, log)
 	}
 
 	for _, function := range transforms {
 		log.Info("Starting function", "name", function.Name)
-		err := Exec(ctx.Context, log, funcIO, function.TransformFunc)
+		err = Exec(ctx.Context, log, funcIO, function)
 		if err != nil {
 			return err
 		}
 	}
 
-	return printFunctionIO(funcIO, log)
-}
-
-func setup(ctx *cli.Context) (*Runtime, error) {
-
-	funcIO, err := NewRuntime(ctx.Context)
-	if err != nil {
-		return nil, err
-	}
-
-	return funcIO, nil
+	return printFunctionIO(&funcIO.io, log)
 }
 
 // NewFunctionFlag returns the "function" cli flag.

@@ -11,14 +11,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type DesiredResources struct {
-	resources *[]Resource
+type DesiredResources[T any, O interface {
+	client.Object
+	*T
+}] struct {
+	Resources         *[]Resource
+	Composite         O
+	ConnectionDetails []xfnv1alpha1.ExplicitConnectionDetail
 }
 
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the desired array of the FunctionIO.
-func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, d.resources, o, kon)
+func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
+	ko, err := getKubeObjectFrom(ctx, d.Resources, o, kon)
 	if err != nil {
 		return err
 	}
@@ -26,7 +31,7 @@ func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Objec
 }
 
 // PutIntoKubeObject adds or updates the desired resource into its kube object
-func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Object, kon string) error {
+func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client.Object, kon string) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	ko := &xkube.Object{
@@ -35,7 +40,7 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 			APIVersion: xkube.ObjectKindAPIVersion,
 		},
 	}
-	err := getFrom(d.resources, ko, kon)
+	err := getFrom(d.Resources, ko, kon)
 	if err != nil {
 		return err
 	}
@@ -50,17 +55,17 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 
 // GetManagedResource will unmarshall the resource from the desired array.
 // This will return any changes that a previous function has made to the desired array.
-func (d *DesiredResources) GetManagedResource(resName string, obj client.Object) error {
-	return getFrom(d.resources, obj, resName)
+func (d *DesiredResources[T, O]) GetManagedResource(resName string, obj client.Object) error {
+	return getFrom(d.Resources, obj, resName)
 }
 
 // PutManagedResource will add the object as is to the FunctionIO desired array.
 // It assumes that the given object is adheres to Crossplane's ManagedResource model.
-func (d *DesiredResources) PutManagedResource(obj client.Object) error {
+func (d *DesiredResources[T, O]) PutManagedResource(obj client.Object) error {
 	return d.put(obj, obj.GetName())
 }
 
-func (d *DesiredResources) put(obj client.Object, resName string) error {
+func (d *DesiredResources[T, O]) put(obj client.Object, resName string) error {
 	kind, _, err := s.ObjectKinds(obj)
 	if err != nil {
 		return err
@@ -72,14 +77,14 @@ func (d *DesiredResources) put(obj client.Object, resName string) error {
 		return err
 	}
 
-	for _, res := range *d.resources {
+	for _, res := range *d.Resources {
 		if res.GetName() == resName {
 			res.SetRaw(rawData)
 			return nil
 		}
 	}
 
-	*d.resources = append(*d.resources, &desiredResource{
+	*d.Resources = append(*d.Resources, &desiredResource{
 		xfnv1alpha1.DesiredResource{
 			Name: resName,
 			Resource: runtime.RawExtension{
