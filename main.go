@@ -39,6 +39,10 @@ var postgresFunctions = []runtime.Transform{
 		Name:          "random-default-schedule",
 		TransformFunc: vp.TransformSchedule,
 	},
+	{
+		Name:          "encrypted-pvc-secret",
+		TransformFunc: vp.AddPvcSecret,
+	},
 }
 
 var (
