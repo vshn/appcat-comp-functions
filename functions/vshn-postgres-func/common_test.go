@@ -25,7 +25,7 @@ func getFunctionFromFile(t assert.TestingT, file string) *runtime.Runtime {
 }
 
 func getCompositeFromIO[T any](t assert.TestingT, io *runtime.Runtime, obj *T) *T {
-	err := json.Unmarshal(io.Observed.Composite.Resource.Raw, obj)
+	err := json.Unmarshal(io.Func.Observed.Composite.Resource.Raw, obj)
 	assert.NoError(t, err)
 
 	return obj

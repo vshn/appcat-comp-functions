@@ -21,7 +21,7 @@ func Exec[T any, O interface {
 	log.V(1).Info("Unmarshalling composite from FunctionIO")
 	var t T
 	obj := &t
-	err := json.Unmarshal(iof.Observed.Composite.Resource.Raw, obj)
+	err := json.Unmarshal(iof.Func.Observed.Composite.Resource.Raw, obj)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal composite: %w", err)
 	}
@@ -37,7 +37,7 @@ func Exec[T any, O interface {
 	if err != nil {
 		return fmt.Errorf("failed to marshal composite: %w", err)
 	}
-	iof.Desired.Composite.Resource.Raw = raw
+	iof.Func.Desired.Composite.Resource.Raw = raw
 
 	return nil
 }
@@ -46,7 +46,7 @@ func Exec[T any, O interface {
 // pick it up again.
 func printFunctionIO(iof *Runtime, log logr.Logger) error {
 	log.V(1).Info("Marshalling FunctionIO")
-	fnc, err := yaml.Marshal(iof)
+	fnc, err := yaml.Marshal(iof.Func)
 	if err != nil {
 		return fmt.Errorf("failed to marshal function io: %w", err)
 	}
@@ -93,7 +93,7 @@ func RunCommand[T any, O interface {
 
 func setup(ctx *cli.Context) (*Runtime, error) {
 
-	funcIO, err := getFunctionIO(ctx.Context)
+	funcIO, err := NewRuntime(ctx.Context)
 	if err != nil {
 		return nil, err
 	}

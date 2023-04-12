@@ -44,7 +44,7 @@ func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp 
 	log.Info("Getting connection secret from managed kubernetes object")
 	s := &v1.Secret{}
 
-	err := iof.GetFromObservedKubeObject(ctx, s, connectionSecretResourceName)
+	err := iof.Observed.GetFromKubeObject(ctx, s, connectionSecretResourceName)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get connection secret object: %w", err)
 	}
@@ -52,8 +52,8 @@ func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp 
 	log.Info("Setting POSTRESQL_URL env variable into connection secret")
 	val := getPostgresURL(ctx, s)
 
-	iof.Desired.Composite.ConnectionDetails =
-		append(iof.Desired.Composite.ConnectionDetails, v1alpha1.ExplicitConnectionDetail{
+	iof.Func.Desired.Composite.ConnectionDetails =
+		append(iof.Func.Desired.Composite.ConnectionDetails, v1alpha1.ExplicitConnectionDetail{
 			Name:  PostgresqlUrl,
 			Value: val,
 		})

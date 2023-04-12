@@ -52,7 +52,7 @@ func TestTransform(t *testing.T) {
 
 		// Then
 		assert.NoError(t, err)
-		assert.Equal(t, expectURL, io.Desired.Composite.ConnectionDetails[0].Value)
+		assert.Equal(t, expectURL, io.Func.Desired.Composite.ConnectionDetails[0].Value)
 		assert.Equal(t, comp, actualComp)
 	})
 }

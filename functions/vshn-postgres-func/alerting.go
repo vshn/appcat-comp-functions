@@ -101,7 +101,7 @@ func deployAlertmanagerFromRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime
 		},
 	}
 
-	err = iof.PutManagedRessource(xkobj)
+	err = iof.Desired.PutManagedResource(xkobj)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func deployAlertmanagerFromTemplate(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Ru
 		return err
 	}
 
-	return iof.PutManagedRessource(xkobj)
+	return iof.Desired.PutManagedResource(xkobj)
 }
 
 func deploySecretRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
@@ -153,5 +153,5 @@ func deploySecretRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 		},
 	}
 
-	return iof.PutManagedRessource(xkobj)
+	return iof.Desired.PutManagedResource(xkobj)
 }
