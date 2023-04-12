@@ -128,7 +128,7 @@ func deployAlertmanagerFromTemplate(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Ru
 func deploySecretRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "postgresql-alertmanagerconfigsecret",
+			Name:      comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
 			Namespace: comp.Status.InstanceNamespace,
 		},
 	}
