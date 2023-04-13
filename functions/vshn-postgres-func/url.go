@@ -2,6 +2,7 @@ package vshnpostgres
 
 import (
 	"context"
+
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"

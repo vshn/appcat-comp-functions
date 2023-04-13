@@ -7,14 +7,18 @@ import (
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/urfave/cli/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
 // Exec reads FunctionIO from stdin and return the desired state via transform function
-func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Transform) error {
+func Exec[T any, O interface {
+	client.Object
+	*T
+}](log logr.Logger, runtime *Runtime[T, O], transform Transform[T, O]) error {
 
 	log.V(1).Info("Executing transformation function")
-	res := transform.TransformFunc(ctx, runtime).Resolve()
+	res := transform.TransformFunc(log, runtime).Resolve()
 	if res.Severity == xfnv1alpha1.SeverityNormal {
 		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
 	}
@@ -33,44 +37,33 @@ func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Tran
 
 // printFunctionIO prints the whole FunctionIO to stdout, so Crossplane can
 // pick it up again.
-func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) error {
+func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) ([]byte, error) {
 	log.V(1).Info("Marshalling FunctionIO")
 	fnc, err := yaml.Marshal(iof)
 	if err != nil {
-		return fmt.Errorf("failed to marshal function io: %w", err)
+		return []byte{}, fmt.Errorf("failed to marshal function io: %w", err)
 	}
 
-	fmt.Println(string(fnc))
-	return nil
+	return fnc, nil
 }
 
-func RunCommand(ctx *cli.Context, transforms []Transform) error {
-	log := logr.FromContextOrDiscard(ctx.Context)
+func RunCommand[T any, O interface {
+	client.Object
+	*T
+}](ctx context.Context, transforms []Transform[T, O], input []byte) ([]byte, error) {
+	log := logr.FromContextOrDiscard(ctx)
 
 	log.V(1).Info("Creating new runtime")
-	funcIO, err := NewRuntime(ctx.Context)
+	funcIO, err := NewRuntime[T, O](ctx, input)
 	if err != nil {
-		return err
-	}
-
-	if ctx.String("function") != "" {
-		for _, function := range transforms {
-			if function.Name == ctx.String("function") {
-				log.Info("Starting single function", "name", function.Name)
-				err = Exec(ctx.Context, log, funcIO, function)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		return printFunctionIO(&funcIO.io, log)
+		return []byte{}, err
 	}
 
 	for _, function := range transforms {
 		log.Info("Starting function", "name", function.Name)
-		err = Exec(ctx.Context, log, funcIO, function)
+		err = Exec(log, funcIO, function)
 		if err != nil {
-			return err
+			return []byte{}, err
 		}
 	}
 

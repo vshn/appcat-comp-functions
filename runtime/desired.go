@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -18,51 +19,18 @@ type DesiredResources struct {
 	composite xfnv1alpha1.DesiredComposite
 }
 
-// List returns the list of managed resources from desired object
-func (d *DesiredResources) List(_ context.Context) []Resource {
-	return d.resources
-}
-
-// Get unmarshalls the resource from the desired array.
-// This will return any changes that a previous function has made to the desired array.
-func (d *DesiredResources) Get(ctx context.Context, obj client.Object, resName string) error {
-	return getFrom(ctx, &d.resources, obj, resName)
-}
-
-// Put adds the object as is to the FunctionIO desired array.
-// It assumes that the given object is adheres to Crossplane's ManagedResource model.
-func (d *DesiredResources) Put(ctx context.Context, obj client.Object) error {
-	return d.put(ctx, obj, obj.GetName())
-}
-
-// Remove removes a resource by name from the managed resources
-// expect an error if resource not found
-func (d *DesiredResources) Remove(ctx context.Context, name string) error {
-	log := controllerruntime.LoggerFrom(ctx)
-	for i, r := range d.resources {
-		if r.GetName() == name {
-			log.V(1).Info("Removing resource from desired resources", "resource name", name)
-			d.resources = append(d.resources[:i], d.resources[i+1:]...)
-			return nil
-		}
+// GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
+// from the desired array of the FunctionIO.
+func (d *DesiredResources[T, O]) GetFromKubeObject(o client.Object, kon string) error {
+	ko, err := getKubeObjectFrom(&d.Resources, kon)
+	if err != nil {
+		return err
 	}
 	return ErrNotFound
 }
 
-// GetFromObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
-// from the desired array of the FunctionIO.
-func (d *DesiredResources) GetFromObject(ctx context.Context, o client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, &d.resources, kon)
-	if err != nil {
-		return fmt.Errorf("cannot get resource from desired kube object: %v", err)
-	}
-	return d.fromKubeObject(ctx, ko, o)
-}
-
-// PutIntoObject adds or updates the desired resource into its kube object
-func (d *DesiredResources) PutIntoObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
-	log := controllerruntime.LoggerFrom(ctx)
-
+// PutIntoKubeObject adds or updates the desired resource into its kube object
+func (d *DesiredResources[T, O]) PutIntoKubeObject(o client.Object, kon string, refs ...xkube.Reference) error {
 	ko := &xkube.Object{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       xkube.ObjectKind,
@@ -80,7 +48,6 @@ func (d *DesiredResources) PutIntoObject(ctx context.Context, o client.Object, k
 		return err
 	}
 
-	log.V(1).Info("Preparing to put object into desired kube object", "object", o, "kube object name", kon)
 	err = updateKubeObject(o, ko)
 	if err != nil {
 		return err

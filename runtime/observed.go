@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
-	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,8 +30,8 @@ func (o *ObservedResources) Get(ctx context.Context, obj client.Object, resName 
 
 // GetFromObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the observed array of the FunctionIO.
-func (o *ObservedResources) GetFromObject(ctx context.Context, obj client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, &o.resources, kon)
+func (o *ObservedResources[T, O]) GetFromKubeObject(obj client.Object, kon string) error {
+	ko, err := getKubeObjectFrom(&o.Resources, kon)
 	if err != nil {
 		return err
 	}

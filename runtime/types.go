@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"context"
+	"github.com/go-logr/logr"
 )
 
 // AppInfo defines application information
@@ -12,5 +12,5 @@ type AppInfo struct {
 // Transform specifies a transformation function to be run against the given FunctionIO.
 type Transform struct {
 	Name          string
-	TransformFunc func(c context.Context, io *Runtime) Result
+	TransformFunc func(log logr.Logger, io *Runtime[T, O]) Result
 }
