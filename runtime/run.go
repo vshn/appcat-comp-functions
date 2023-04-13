@@ -16,29 +16,27 @@ import (
 func Exec[T any, O interface {
 	client.Object
 	*T
-}](ctx context.Context, log logr.Logger, iof *Runtime[T, O], transform Transform[T, O]) error {
+}](ctx context.Context, log logr.Logger, runtime *Runtime[T, O], transform Transform[T, O]) error {
 
 	log.V(1).Info("Executing transformation function")
-	err := transform.TransformFunc(ctx, log, iof)
+	err := transform.TransformFunc(ctx, log, runtime)
 	if err != nil {
-		iof.AddResult(xfnv1alpha1.SeverityWarning, err.Error())
+		runtime.AddResult(xfnv1alpha1.SeverityWarning, err.Error())
 	}
-
-	log.V(1).Info("Marshalling observed composite")
-	raw, err := json.Marshal(iof.Observed.Composite)
-	if err != nil {
-		return fmt.Errorf("failed to marshal Desired composite: %w", err)
-	}
-	iof.io.Observed.Composite.Resource.Raw = raw
-	iof.io.Observed.Composite.ConnectionDetails = iof.Observed.ConnectionDetails
 
 	log.V(1).Info("Marshalling desired composite")
-	dRaw, err := json.Marshal(iof.Desired.Composite)
+	dRaw, err := json.Marshal(runtime.Desired.Composite)
 	if err != nil {
 		return fmt.Errorf("failed to marshal desired composite: %w", err)
 	}
-	iof.io.Desired.Composite.Resource.Raw = dRaw
-	iof.io.Desired.Composite.ConnectionDetails = iof.Desired.ConnectionDetails
+	runtime.io.Desired.Composite.Resource.Raw = dRaw
+	runtime.io.Desired.Composite.ConnectionDetails = runtime.Desired.ConnectionDetails
+
+	log.V(1).Info("Marshalling desired resources")
+	runtime.io.Desired.Resources = make([]xfnv1alpha1.DesiredResource, len(runtime.Desired.Resources))
+	for i, r := range runtime.Desired.Resources {
+		runtime.io.Desired.Resources[i] = xfnv1alpha1.DesiredResource(r.(desiredResource))
+	}
 
 	return nil
 }

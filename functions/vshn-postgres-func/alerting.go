@@ -19,13 +19,13 @@ func AddUserAlerting(_ context.Context, log logr.Logger, iof *runtime.Runtime[vs
 
 	log.Info("Check if alerting references are set")
 
-	log.V(1).Info("Tranfsorming", "obj", iof)
+	log.V(1).Info("Transforming", "obj", iof)
 
 	err := runtime.AddToScheme(alertmanagerv1alpha1.SchemeBuilder)
 	if err != nil {
 		return err
 	}
-	comp := iof.Desired.Composite
+	comp := &iof.Desired.Composite
 
 	monitoringSpec := comp.Spec.Parameters.Monitoring
 
@@ -39,7 +39,7 @@ func AddUserAlerting(_ context.Context, log logr.Logger, iof *runtime.Runtime[vs
 		refName := comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef
 		log.Info("Found an AlertmanagerConfigRef, deploying...", "refName", refName)
 
-		err := deployAlertmanagerFromRef(iof.Desired.Composite, iof)
+		err = deployAlertmanagerFromRef(&iof.Desired.Composite, iof)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func AddUserAlerting(_ context.Context, log logr.Logger, iof *runtime.Runtime[vs
 
 		log.Info("Found an AlertmanagerConfigTemplate, deploying...")
 
-		err := deployAlertmanagerFromTemplate(comp, iof)
+		err = deployAlertmanagerFromTemplate(comp, iof)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func AddUserAlerting(_ context.Context, log logr.Logger, iof *runtime.Runtime[vs
 		refName := comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef
 		log.Info("Found an AlertmanagerConfigSecretRef, deploying...", "refName", refName)
 
-		err := deploySecretRef(comp, iof)
+		err = deploySecretRef(comp, iof)
 		if err != nil {
 			return err
 		}

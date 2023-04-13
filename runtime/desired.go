@@ -15,15 +15,15 @@ type DesiredResources[T any, O interface {
 	client.Object
 	*T
 }] struct {
-	Resources         *[]Resource
-	Composite         O
+	Resources         []Resource
+	Composite         T
 	ConnectionDetails []xfnv1alpha1.ExplicitConnectionDetail
 }
 
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the desired array of the FunctionIO.
 func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, d.Resources, o, kon)
+	ko, err := getKubeObjectFrom(ctx, &d.Resources, o, kon)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 			APIVersion: xkube.ObjectKindAPIVersion,
 		},
 	}
-	err := getFrom(d.Resources, ko, kon)
+	err := getFrom(&d.Resources, ko, kon)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 // GetManagedResource will unmarshall the resource from the desired array.
 // This will return any changes that a previous function has made to the desired array.
 func (d *DesiredResources[T, O]) GetManagedResource(resName string, obj client.Object) error {
-	return getFrom(d.Resources, obj, resName)
+	return getFrom(&d.Resources, obj, resName)
 }
 
 // PutManagedResource will add the object as is to the FunctionIO desired array.
@@ -77,38 +77,36 @@ func (d *DesiredResources[T, O]) put(obj client.Object, resName string) error {
 		return err
 	}
 
-	for _, res := range *d.Resources {
+	for _, res := range d.Resources {
 		if res.GetName() == resName {
 			res.SetRaw(rawData)
 			return nil
 		}
 	}
 
-	*d.Resources = append(*d.Resources, &desiredResource{
+	d.Resources = append(d.Resources, desiredResource(
 		xfnv1alpha1.DesiredResource{
 			Name: resName,
 			Resource: runtime.RawExtension{
 				Raw: rawData,
 			},
 		},
-	})
+	))
 	return nil
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource
 // so we can satisfy the Resource interface.
-type desiredResource struct {
-	xfnv1alpha1.DesiredResource
-}
+type desiredResource xfnv1alpha1.DesiredResource
 
-func (d *desiredResource) GetName() string {
+func (d desiredResource) GetName() string {
 	return d.Name
 }
 
-func (d *desiredResource) GetRaw() []byte {
+func (d desiredResource) GetRaw() []byte {
 	return d.Resource.Raw
 }
 
-func (d *desiredResource) SetRaw(raw []byte) {
+func (d desiredResource) SetRaw(raw []byte) {
 	d.Resource.Raw = raw
 }

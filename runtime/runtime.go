@@ -67,8 +67,8 @@ func NewRuntime[T any, O interface {
 	log.V(1).Info("Unmarshalling FunctionIO from stdin")
 	r := Runtime[T, O]{}
 	err = yaml.Unmarshal(x, &r.io)
-	r.Observed = ObservedResources[T, O]{Resources: observedResources(r.io.Observed.Resources)}
-	r.Desired = DesiredResources[T, O]{Resources: desiredResources(r.io.Desired.Resources)}
+	r.Observed = ObservedResources[T, O]{Resources: *observedResources(r.io.Observed.Resources)}
+	r.Desired = DesiredResources[T, O]{Resources: *desiredResources(r.io.Desired.Resources)}
 
 	log.V(1).Info("Unmarshalling observed composite from FunctionIO")
 	var o T
@@ -77,7 +77,7 @@ func NewRuntime[T any, O interface {
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal composite: %w", err)
 	}
-	r.Observed.Composite = observed
+	r.Observed.Composite = *observed
 
 	log.V(1).Info("Unmarshalling desired composite from FunctionIO")
 	var d T
@@ -86,7 +86,7 @@ func NewRuntime[T any, O interface {
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal composite: %w", err)
 	}
-	r.Desired.Composite = desired
+	r.Desired.Composite = *desired
 
 	return &r, nil
 }
@@ -141,7 +141,7 @@ func desiredResources(dr []xfnv1alpha1.DesiredResource) *[]Resource {
 	resources := make([]Resource, len(dr))
 
 	for i := range dr {
-		resources[i] = &desiredResource{DesiredResource: dr[i]}
+		resources[i] = desiredResource(dr[i])
 	}
 
 	return &resources
