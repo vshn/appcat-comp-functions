@@ -31,7 +31,7 @@ func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client
 }
 
 // PutIntoKubeObject adds or updates the desired resource into its kube object
-func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client.Object, kon string) error {
+func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	ko := &xkube.Object{
@@ -39,9 +39,12 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 			Kind:       xkube.ObjectKind,
 			APIVersion: xkube.ObjectKindAPIVersion,
 		},
+		Spec: xkube.ObjectSpec{
+			References: refs,
+		},
 	}
 	err := getFrom(&d.Resources, ko, kon)
-	if err != nil {
+	if err != nil && err != ErrNotFound {
 		return err
 	}
 
@@ -50,6 +53,7 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 	if err != nil {
 		return err
 	}
+
 	return d.put(ko, kon)
 }
 

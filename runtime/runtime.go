@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	"io"
@@ -101,7 +100,6 @@ func fromKubeObject(kobj *xkube.Object, obj client.Object) error {
 func getKubeObjectFrom(ctx context.Context, resources *[]Resource, o client.Object, kon string) (*xkube.Object, error) {
 	log := controllerruntime.LoggerFrom(ctx)
 
-	log.V(1).Info("Creating kube object from name and unmarshalling it", "kube object", kon)
 	ko := &xkube.Object{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       xkube.ObjectKind,
@@ -176,7 +174,7 @@ func updateKubeObject(obj client.Object, ko *xkube.Object) error {
 
 // AddResult will add a new result to the results array.
 // These results will generate events on the composite.
-func (r *Runtime[T, O]) AddResult(severity xfnv1alpha1.Severity, message string) {
+func (r *Runtime[T, O]) addResult(severity xfnv1alpha1.Severity, message string) {
 	r.io.Results = append(r.io.Results, xfnv1alpha1.Result{
 		Severity: severity,
 		Message:  message,
@@ -186,50 +184,4 @@ func (r *Runtime[T, O]) AddResult(severity xfnv1alpha1.Severity, message string)
 // AddToScheme adds given SchemeBuilder to the Scheme.
 func AddToScheme(obj runtime.SchemeBuilder) error {
 	return obj.AddToScheme(s)
-}
-
-// SetGroupVersionKind automatically populates the GVK of an object with
-// the current scheme.
-func SetGroupVersionKind(obj client.Object) error {
-	kind, _, err := s.ObjectKinds(obj)
-	if err != nil {
-		return err
-	}
-	obj.GetObjectKind().SetGroupVersionKind(kind[0])
-	return nil
-}
-
-// AddObjectToXKube is a helper to wrap vanilla K8s objects into Objects of provider-kubernetes.
-// Useful if the outer object needs to manipulated before it can be applied to the desired FunctionIO.
-func AddObjectToXKube(objectName string, obj client.Object) (*xkube.Object, error) {
-
-	err := SetGroupVersionKind(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	rawData, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	xkobj := &xkube.Object{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: objectName,
-		},
-		Spec: xkube.ObjectSpec{
-			ForProvider: xkube.ObjectParameters{
-				Manifest: runtime.RawExtension{
-					Raw: rawData,
-				},
-			},
-			ResourceSpec: xpv1.ResourceSpec{
-				ProviderConfigReference: &xpv1.Reference{
-					Name: "kubernetes",
-				},
-			},
-		},
-	}
-
-	return xkobj, nil
 }

@@ -21,7 +21,7 @@ func Exec[T any, O interface {
 	log.V(1).Info("Executing transformation function")
 	err := transform.TransformFunc(ctx, log, runtime)
 	if err != nil {
-		runtime.AddResult(xfnv1alpha1.SeverityWarning, err.Error())
+		runtime.addResult(xfnv1alpha1.SeverityWarning, err.Error())
 	}
 
 	log.V(1).Info("Marshalling desired composite")
