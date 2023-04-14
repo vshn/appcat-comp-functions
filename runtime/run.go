@@ -19,10 +19,11 @@ func Exec[T any, O interface {
 }](ctx context.Context, log logr.Logger, runtime *Runtime[T, O], transform Transform[T, O]) error {
 
 	log.V(1).Info("Executing transformation function")
-	err := transform.TransformFunc(ctx, log, runtime)
-	if err != nil {
-		runtime.addResult(xfnv1alpha1.SeverityWarning, err.Error())
+	res := transform.TransformFunc(ctx, log, runtime).Resolve()
+	if res.Severity == xfnv1alpha1.SeverityNormal {
+		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
 	}
+	runtime.io.Results = append(runtime.io.Results, res)
 
 	log.V(1).Info("Marshalling desired composite")
 	dRaw, err := json.Marshal(runtime.Desired.Composite)

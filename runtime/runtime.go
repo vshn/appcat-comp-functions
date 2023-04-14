@@ -172,15 +172,6 @@ func updateKubeObject(obj client.Object, ko *xkube.Object) error {
 	return nil
 }
 
-// AddResult will add a new result to the results array.
-// These results will generate events on the composite.
-func (r *Runtime[T, O]) addResult(severity xfnv1alpha1.Severity, message string) {
-	r.io.Results = append(r.io.Results, xfnv1alpha1.Result{
-		Severity: severity,
-		Message:  message,
-	})
-}
-
 // AddToScheme adds given SchemeBuilder to the Scheme.
 func AddToScheme(obj runtime.SchemeBuilder) error {
 	return obj.AddToScheme(s)

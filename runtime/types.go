@@ -18,5 +18,5 @@ type Transform[T any, O interface {
 	*T
 }] struct {
 	Name          string
-	TransformFunc func(c context.Context, log logr.Logger, io *Runtime[T, O]) error
+	TransformFunc func(c context.Context, log logr.Logger, io *Runtime[T, O]) Result
 }

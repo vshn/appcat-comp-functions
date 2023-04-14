@@ -3,7 +3,6 @@ package vshnpostgres
 import (
 	"context"
 	"fmt"
-
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/vshn/appcat-comp-functions/runtime"
@@ -34,11 +33,11 @@ var (
 var connectionSecretResourceName = "connection"
 
 // AddUrlToConnectionDetails changes the desired state of a FunctionIO
-func AddUrlToConnectionDetails(ctx context.Context, log logr.Logger, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
+func AddUrlToConnectionDetails(ctx context.Context, log logr.Logger, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) runtime.Result {
 	// Wait for the next reconciliation in case instance namespace is missing
 	if iof.Observed.Composite.Status.InstanceNamespace == "" {
 		log.Info("Composite is missing instance namespace, skipping transformation")
-		return nil
+		return runtime.NewWarning("Composite is missing instance namespace, skipping transformation")
 	}
 
 	log.Info("Getting connection secret from managed kubernetes object")
@@ -46,7 +45,7 @@ func AddUrlToConnectionDetails(ctx context.Context, log logr.Logger, iof *runtim
 
 	err := iof.Observed.GetFromKubeObject(ctx, s, connectionSecretResourceName)
 	if err != nil {
-		return fmt.Errorf("cannot get connection secret object: %w", err)
+		return runtime.NewFatal(fmt.Sprintf("cannot get connection secret object: %s", err.Error()))
 	}
 
 	log.Info("Setting POSTRESQL_URL env variable into connection secret")
@@ -58,7 +57,11 @@ func AddUrlToConnectionDetails(ctx context.Context, log logr.Logger, iof *runtim
 			Value: val,
 		})
 
-	return nil
+	if val == "" {
+		return runtime.NewWarning("User, pass, host, port or db value is missing from connection secret, skipping transformation")
+	}
+
+	return runtime.NewNormal()
 }
 
 func getPostgresURL(ctx context.Context, s *v1.Secret) string {

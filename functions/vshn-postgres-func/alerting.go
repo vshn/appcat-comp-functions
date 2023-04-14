@@ -2,7 +2,6 @@ package vshnpostgres
 
 import (
 	"context"
-	"fmt"
 
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	"github.com/go-logr/logr"
@@ -15,7 +14,7 @@ import (
 )
 
 // AddUserAlerting adds user alerting to the PostgreSQL instance.
-func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
+func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) runtime.Result {
 
 	log.Info("Check if alerting references are set")
 
@@ -23,7 +22,7 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[
 
 	err := runtime.AddToScheme(alertmanagerv1alpha1.SchemeBuilder)
 	if err != nil {
-		return err
+		return runtime.NewFatal(err.Error())
 	}
 	comp := &iof.Desired.Composite
 
@@ -33,7 +32,7 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[
 
 		if monitoringSpec.AlertmanagerConfigSecretRef == "" {
 			log.Info("Found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef")
-			return fmt.Errorf("found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well")
+			return runtime.NewFatal("found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well")
 		}
 
 		refName := comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef
@@ -41,7 +40,7 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[
 
 		err = deployAlertmanagerFromRef(ctx, &iof.Desired.Composite, iof)
 		if err != nil {
-			return err
+			return runtime.NewFatal(err.Error())
 		}
 
 	}
@@ -50,14 +49,14 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[
 
 		if monitoringSpec.AlertmanagerConfigSecretRef == "" {
 			log.Info("Found AlertmanagerConfigTemplate but no AlertmanagerConfigSecretRef")
-			return fmt.Errorf("found AlertmanagerConfigTemplate but no AlertmanagerConfigSecretRef, please specify as well")
+			return runtime.NewFatal("found AlertmanagerConfigTemplate but no AlertmanagerConfigSecretRef, please specify as well")
 		}
 
 		log.Info("Found an AlertmanagerConfigTemplate, deploying...")
 
 		err = deployAlertmanagerFromTemplate(ctx, comp, iof)
 		if err != nil {
-			return err
+			return runtime.NewFatal(err.Error())
 		}
 	}
 
@@ -67,11 +66,11 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime[
 
 		err = deploySecretRef(ctx, comp, iof)
 		if err != nil {
-			return err
+			return runtime.NewFatal(err.Error())
 		}
 	}
 
-	return nil
+	return runtime.NewNormal()
 }
 
 func deployAlertmanagerFromRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
