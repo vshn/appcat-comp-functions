@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,9 +34,7 @@ func (o *ObservedResources[T, O]) GetManagedResource(resName string, obj client.
 
 // observedResource is a wrapper around xfnv1alpha1.ObservedResource
 // so we can satisfy the Resource interface.
-type observedResource struct {
-	xfnv1alpha1.ObservedResource
-}
+type observedResource xfnv1alpha1.ObservedResource
 
 func (o observedResource) GetName() string {
 	return o.Name
@@ -47,4 +46,8 @@ func (o observedResource) GetRaw() []byte {
 
 func (o observedResource) SetRaw(raw []byte) {
 	o.Resource.Raw = raw
+}
+
+func (o observedResource) GetKind() schema.ObjectKind {
+	return o.Resource.Object.GetObjectKind()
 }

@@ -2,14 +2,16 @@ package vshnpostgres
 
 import (
 	"context"
+	"fmt"
+	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
+	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
+	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
+	"github.com/vshn/appcat-comp-functions/runtime"
+	v1 "k8s.io/api/core/v1"
 	"testing"
 
-	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	"github.com/go-logr/logr"
-	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
-	v1 "k8s.io/api/core/v1"
 )
 
 func TestAddUserAlerting(t *testing.T) {
@@ -18,9 +20,9 @@ func TestAddUserAlerting(t *testing.T) {
 		inputFuncIO    string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name      string
+		args      args
+		expResult xfnv1alpha1.Result
 	}{
 		{
 			name: "GivenNoMonitoringParams_ThenExpectNoOutput",
@@ -28,11 +30,14 @@ func TestAddUserAlerting(t *testing.T) {
 				expectedFuncIO: "alerting/01-ThenExpectNoOutput.yaml",
 				inputFuncIO:    "alerting/01-GivenNoMonitoringParams.yaml",
 			},
-			wantErr: false,
+			expResult: xfnv1alpha1.Result{
+				Severity: xfnv1alpha1.SeverityNormal,
+				Message:  fmt.Sprintf("function ran successfully"),
+			},
 		},
 		{
-			name:    "GivenConfigRefNoSecretRef_ThenExpectError",
-			wantErr: true,
+			name:      "GivenConfigRefNoSecretRef_ThenExpectError",
+			expResult: runtime.NewFatal("found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well").Resolve(),
 			args: args{
 				expectedFuncIO: "alerting/02-ThenExpectError.yaml",
 				inputFuncIO:    "alerting/02-GivenConfigRefNoSecretRef.yaml",
@@ -44,20 +49,13 @@ func TestAddUserAlerting(t *testing.T) {
 			ctx := context.Background()
 			log := logr.FromContextOrDiscard(ctx)
 
-			iof := getFunctionFromFile(t, tt.args.inputFuncIO)
-			comp := &vshnv1.VSHNPostgreSQL{}
-			inComp := getCompositeFromIO(t, iof, comp)
-			expIof := getFunctionFromFile(t, tt.args.expectedFuncIO)
+			iof := loadRuntimeFromFile(t, tt.args.inputFuncIO)
+			expIof := loadRuntimeFromFile(t, tt.args.expectedFuncIO)
 
-			_, err := AddUserAlerting(ctx, log, iof, inComp)
+			r := AddUserAlerting(log, iof)
 
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, expIof, iof)
-			}
-
+			assert.Equal(t, tt.expResult, r.Resolve())
+			assert.Equal(t, getFunctionIo(expIof), getFunctionIo(iof))
 		})
 	}
 }
@@ -69,31 +67,28 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 	t.Run("GivenConfigRefAndSecret_ThenExpectOutput", func(t *testing.T) {
 
-		iof := getFunctionFromFile(t, "alerting/03-GivenConfigRefAndSecret.yaml")
-		comp := &vshnv1.VSHNPostgreSQL{}
-		inComp := getCompositeFromIO(t, iof, comp)
+		iof := loadRuntimeFromFile(t, "alerting/03-GivenConfigRefAndSecret.yaml")
 
-		_, err := AddUserAlerting(ctx, log, iof, inComp)
-		assert.NoError(t, err)
+		r := AddUserAlerting(log, iof)
+		assert.Equal(t, runtime.NewNormal(), r)
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
 		assert.NoError(t, iof.Desired.GetManagedResource(resName, kubeObject))
 
-		assert.Equal(t, comp.Labels["crossplane.io/claim-namespace"], kubeObject.Spec.References[0].PatchesFrom.Namespace)
-		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
+		assert.Equal(t, iof.Desired.Composite.Labels["crossplane.io/claim-namespace"], kubeObject.Spec.References[0].PatchesFrom.Namespace)
+		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
-		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
+		assert.NoError(t, iof.Desired.GetFromKubeObject(alertConfig, resName))
+		assert.Equal(t, iof.Desired.Composite.Status.InstanceNamespace, alertConfig.GetNamespace())
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
-		assert.NoError(t, iof.GetFromDesiredKubeObject(ctx, secret, secretName))
+		assert.NoError(t, iof.Desired.GetFromKubeObject(secret, secretName))
 
-		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
+		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
-
 }
 
 func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
@@ -102,12 +97,10 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 
 	t.Run("GivenConfigTemplateAndSecret_ThenExpectOutput", func(t *testing.T) {
 
-		iof := getFunctionFromFile(t, "alerting/04-GivenConfigTemplateAndSecret.yaml")
-		comp := &vshnv1.VSHNPostgreSQL{}
-		inComp := getCompositeFromIO(t, iof, comp)
+		iof := loadRuntimeFromFile(t, "alerting/04-GivenConfigTemplateAndSecret.yaml")
 
-		_, err := AddUserAlerting(ctx, log, iof, inComp)
-		assert.NoError(t, err)
+		r := AddUserAlerting(log, iof)
+		assert.Equal(t, runtime.NewNormal(), r)
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
@@ -116,14 +109,14 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 		assert.Empty(t, kubeObject.Spec.References)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
-		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
-		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
+		assert.NoError(t, iof.Desired.GetFromKubeObject(alertConfig, resName))
+		assert.Equal(t, iof.Desired.Composite.Status.InstanceNamespace, alertConfig.GetNamespace())
+		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
-		assert.NoError(t, iof.GetFromDesiredKubeObject(ctx, secret, secretName))
+		assert.NoError(t, iof.Desired.GetFromKubeObject(secret, secretName))
 
-		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
+		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
 }

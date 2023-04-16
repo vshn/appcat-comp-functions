@@ -92,7 +92,10 @@ func NewRuntime[T any, O interface {
 
 func fromKubeObject(kobj *xkube.Object, obj client.Object) error {
 	if kobj.Status.AtProvider.Manifest.Raw == nil {
-		return fmt.Errorf("no resource in kubernetes object")
+		if kobj.Spec.ForProvider.Manifest.Raw == nil {
+			return fmt.Errorf("no resource in kubernetes object")
+		}
+		return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
 	}
 	return json.Unmarshal(kobj.Status.AtProvider.Manifest.Raw, obj)
 }
@@ -149,7 +152,7 @@ func observedResources(or []xfnv1alpha1.ObservedResource) *[]Resource {
 	resources := make([]Resource, len(or))
 
 	for i := range or {
-		resources[i] = &observedResource{ObservedResource: or[i]}
+		resources[i] = observedResource(or[i])
 	}
 
 	return &resources

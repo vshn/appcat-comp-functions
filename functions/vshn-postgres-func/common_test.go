@@ -1,32 +1,39 @@
 package vshnpostgres
 
 import (
-	"encoding/json"
+	"context"
+	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
+	"github.com/vshn/appcat-comp-functions/runtime"
+	v1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vshn/appcat-comp-functions/runtime"
-	"sigs.k8s.io/yaml"
 )
 
-func getFunctionFromFile(t assert.TestingT, file string) *runtime.Runtime {
+func loadRuntimeFromFile(t assert.TestingT, file string) *runtime.Runtime[v1.VSHNPostgreSQL, *v1.VSHNPostgreSQL] {
 	p, _ := filepath.Abs(".")
 	before, _, _ := strings.Cut(p, "/functions")
-	dat, err := os.ReadFile(before + "/test/transforms/vshn-postgres/" + file)
+	f, err := os.Open(before + "/test/transforms/vshn-postgres/" + file)
+	assert.NoError(t, err)
+	os.Stdin = f
+	funcIO, err := runtime.NewRuntime[v1.VSHNPostgreSQL, *v1.VSHNPostgreSQL](context.Background())
 	assert.NoError(t, err)
 
-	funcIO := runtime.Runtime{}
-	err = yaml.Unmarshal(dat, &funcIO)
-	assert.NoError(t, err)
-
-	return &funcIO
+	return funcIO
 }
 
-func getCompositeFromIO[T any](t assert.TestingT, io *runtime.Runtime, obj *T) *T {
-	err := json.Unmarshal(io.Func.Observed.Composite.Resource.Raw, obj)
-	assert.NoError(t, err)
+func getFunctionIo(funcIO *runtime.Runtime[v1.VSHNPostgreSQL, *v1.VSHNPostgreSQL]) xfnv1alpha1.FunctionIO {
+	field := reflect.ValueOf(funcIO).Elem().FieldByName("io")
+	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(xfnv1alpha1.FunctionIO)
+}
 
-	return obj
+func setFunctionIO(funcIO *runtime.Runtime[v1.VSHNPostgreSQL, *v1.VSHNPostgreSQL], value xfnv1alpha1.FunctionIO) {
+	field := reflect.ValueOf(funcIO).Elem().FieldByName("io")
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).
+		Elem().
+		Set(reflect.ValueOf(value))
 }

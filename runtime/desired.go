@@ -30,6 +30,36 @@ func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client
 	return fromKubeObject(ko, o)
 }
 
+// ResourceExists check weather a relevant resource exists in this slice.
+// A relevant resource is any resource that is not a Kubernetes Object resource.
+// The function also checks resources inside Kubernetes Objects in case unmarshalling
+// does not fail.
+func (d *DesiredResources[T, O]) ResourceExists(name string) bool {
+	for _, r := range d.Resources {
+		var o client.Object
+		err := json.Unmarshal(r.GetRaw(), o)
+		if err != nil {
+			return false
+		}
+		if o.GetObjectKind().GroupVersionKind() == xkube.ObjectGroupVersionKind {
+			ko := o.(*xkube.Object)
+			var o client.Object
+			err = json.Unmarshal(ko.Spec.ForProvider.Manifest.Raw, o)
+			if err != nil {
+				return false
+			}
+			if o.GetName() == name {
+				return true
+			}
+		} else {
+			if r.GetName() == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // PutIntoKubeObject adds or updates the desired resource into its kube object
 func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
 	log := controllerruntime.LoggerFrom(ctx)

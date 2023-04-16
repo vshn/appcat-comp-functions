@@ -11,13 +11,13 @@ import (
 )
 
 func TestTransform_NoInstanceNamespace(t *testing.T) {
-	expectIo := getFunctionFromFile(t, "url/01_expected_no-instance-namespace.yaml")
+	expectIo := loadRuntimeFromFile(t, "url/01_expected_no-instance-namespace.yaml")
 	expectResult := runtime.NewWarning("Composite is missing instance namespace, skipping transformation")
 
 	t.Run("WhenNoInstance_ThenNoErrorAndNoChanges", func(t *testing.T) {
 
 		//Given
-		io := getFunctionFromFile(t, "url/01_input_no-instance-namespace.yaml")
+		io := loadRuntimeFromFile(t, "url/01_input_no-instance-namespace.yaml")
 		//comp := getCompositeFromIO(t, io, vpu)
 		ctx := context.Background()
 		log := logr.FromContextOrDiscard(ctx)
@@ -39,16 +39,16 @@ func TestTransform(t *testing.T) {
 	t.Run("WhenNormalIO_ThenAddPostgreSQLUrl", func(t *testing.T) {
 
 		//Given
-		io := getFunctionFromFile(t, "url/02_input_function-io.yaml")
+		r := loadRuntimeFromFile(t, "url/02_input_function-io.yaml")
 		ctx := context.Background()
 		log := logr.FromContextOrDiscard(ctx)
 
 		// When
-		result := AddUrlToConnectionDetails(log, io)
+		result := AddUrlToConnectionDetails(log, r)
 
 		// Then
 		assert.Equal(t, expectResult, result)
-		assert.Equal(t, expectURL, io.Desired.ConnectionDetails[0].Value)
+		assert.Equal(t, expectURL, r.Desired.ConnectionDetails[0].Value)
 	})
 }
 
