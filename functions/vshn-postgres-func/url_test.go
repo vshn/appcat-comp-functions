@@ -5,25 +5,22 @@ import (
 	"github.com/vshn/appcat-comp-functions/runtime"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
 
 func TestTransform_NoInstanceNamespace(t *testing.T) {
+	ctx := context.Background()
 	expectIo := loadRuntimeFromFile(t, "url/01_expected_no-instance-namespace.yaml")
-	expectResult := runtime.NewWarning("Composite is missing instance namespace, skipping transformation")
+	expectResult := runtime.NewWarning(ctx, "Composite is missing instance namespace, skipping transformation")
 
 	t.Run("WhenNoInstance_ThenNoErrorAndNoChanges", func(t *testing.T) {
 
 		//Given
 		io := loadRuntimeFromFile(t, "url/01_input_no-instance-namespace.yaml")
-		//comp := getCompositeFromIO(t, io, vpu)
-		ctx := context.Background()
-		log := logr.FromContextOrDiscard(ctx)
 
 		// When
-		result := AddUrlToConnectionDetails(log, io)
+		result := AddUrlToConnectionDetails(ctx, io)
 
 		// Then
 		assert.Equal(t, expectResult, result)
@@ -32,6 +29,7 @@ func TestTransform_NoInstanceNamespace(t *testing.T) {
 }
 
 func TestTransform(t *testing.T) {
+	ctx := context.Background()
 	expectURL := "postgres://postgres:639b-9076-4de6-a35@" +
 		"pgsql-gc9x4.vshn-postgresql-pgsql-gc9x4.svc.cluster.local:5432/postgres"
 	expectResult := runtime.NewNormal()
@@ -40,11 +38,9 @@ func TestTransform(t *testing.T) {
 
 		//Given
 		r := loadRuntimeFromFile(t, "url/02_input_function-io.yaml")
-		ctx := context.Background()
-		log := logr.FromContextOrDiscard(ctx)
 
 		// When
-		result := AddUrlToConnectionDetails(log, r)
+		result := AddUrlToConnectionDetails(ctx, r)
 
 		// Then
 		assert.Equal(t, expectResult, result)

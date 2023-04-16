@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -18,5 +17,5 @@ type Transform[T any, O interface {
 	*T
 }] struct {
 	Name          string
-	TransformFunc func(c context.Context, log logr.Logger, io *Runtime[T, O]) Result
+	TransformFunc func(c context.Context, io *Runtime[T, O]) Result
 }

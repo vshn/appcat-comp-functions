@@ -10,11 +10,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAddUserAlerting(t *testing.T) {
+	ctx := context.Background()
+
 	type args struct {
 		expectedFuncIO string
 		inputFuncIO    string
@@ -37,7 +38,7 @@ func TestAddUserAlerting(t *testing.T) {
 		},
 		{
 			name:      "GivenConfigRefNoSecretRef_ThenExpectError",
-			expResult: runtime.NewFatal("found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well").Resolve(),
+			expResult: runtime.NewFatal(ctx, "Found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well").Resolve(),
 			args: args{
 				expectedFuncIO: "alerting/02-ThenExpectError.yaml",
 				inputFuncIO:    "alerting/02-GivenConfigRefNoSecretRef.yaml",
@@ -46,13 +47,11 @@ func TestAddUserAlerting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			log := logr.FromContextOrDiscard(ctx)
 
 			iof := loadRuntimeFromFile(t, tt.args.inputFuncIO)
 			expIof := loadRuntimeFromFile(t, tt.args.expectedFuncIO)
 
-			r := AddUserAlerting(log, iof)
+			r := AddUserAlerting(ctx, iof)
 
 			assert.Equal(t, tt.expResult, r.Resolve())
 			assert.Equal(t, getFunctionIo(expIof), getFunctionIo(iof))
@@ -63,13 +62,12 @@ func TestAddUserAlerting(t *testing.T) {
 func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 	ctx := context.Background()
-	log := logr.FromContextOrDiscard(ctx)
 
 	t.Run("GivenConfigRefAndSecret_ThenExpectOutput", func(t *testing.T) {
 
 		iof := loadRuntimeFromFile(t, "alerting/03-GivenConfigRefAndSecret.yaml")
 
-		r := AddUserAlerting(log, iof)
+		r := AddUserAlerting(ctx, iof)
 		assert.Equal(t, runtime.NewNormal(), r)
 
 		resName := "psql-alertmanagerconfig"
@@ -80,12 +78,12 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(alertConfig, resName))
+		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
 		assert.Equal(t, iof.Desired.Composite.Status.InstanceNamespace, alertConfig.GetNamespace())
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(secret, secretName))
+		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, secret, secretName))
 
 		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
@@ -93,13 +91,12 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 	ctx := context.Background()
-	log := logr.FromContextOrDiscard(ctx)
 
 	t.Run("GivenConfigTemplateAndSecret_ThenExpectOutput", func(t *testing.T) {
 
 		iof := loadRuntimeFromFile(t, "alerting/04-GivenConfigTemplateAndSecret.yaml")
 
-		r := AddUserAlerting(log, iof)
+		r := AddUserAlerting(ctx, iof)
 		assert.Equal(t, runtime.NewNormal(), r)
 
 		resName := "psql-alertmanagerconfig"
@@ -109,13 +106,13 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 		assert.Empty(t, kubeObject.Spec.References)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(alertConfig, resName))
+		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
 		assert.Equal(t, iof.Desired.Composite.Status.InstanceNamespace, alertConfig.GetNamespace())
 		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(secret, secretName))
+		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, secret, secretName))
 
 		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})

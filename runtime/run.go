@@ -19,7 +19,7 @@ func Exec[T any, O interface {
 }](ctx context.Context, log logr.Logger, runtime *Runtime[T, O], transform Transform[T, O]) error {
 
 	log.V(1).Info("Executing transformation function")
-	res := transform.TransformFunc(ctx, log, runtime).Resolve()
+	res := transform.TransformFunc(ctx, runtime).Resolve()
 	if res.Severity == xfnv1alpha1.SeverityNormal {
 		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
 	}
