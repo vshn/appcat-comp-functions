@@ -23,13 +23,10 @@ var s = runtime.NewScheme()
 type contextKey int
 
 // Runtime a struct which encapsulates crossplane FunctionIO
-type Runtime[T any, O interface {
-	client.Object
-	*T
-}] struct {
+type Runtime struct {
 	io       xfnv1alpha1.FunctionIO
-	Observed ObservedResources[T, O]
-	Desired  DesiredResources[T, O]
+	Observed ObservedResources
+	Desired  DesiredResources
 }
 
 type Resource interface {
@@ -50,10 +47,7 @@ func init() {
 var ErrNotFound = errors.New("not found")
 
 // NewRuntime creates a new Runtime object.
-func NewRuntime[T any, O interface {
-	client.Object
-	*T
-}](ctx context.Context) (*Runtime[T, O], error) {
+func NewRuntime(ctx context.Context) (*Runtime, error) {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	log.V(1).Info("Reading from stdin")
@@ -63,31 +57,19 @@ func NewRuntime[T any, O interface {
 	}
 
 	log.V(1).Info("Unmarshalling FunctionIO from stdin")
-	r := Runtime[T, O]{}
+	r := Runtime{}
 	err = yaml.Unmarshal(x, &r.io)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal function io: %w", err)
 	}
-	r.Observed = ObservedResources[T, O]{Resources: *observedResources(r.io.Observed.Resources)}
-	r.Desired = DesiredResources[T, O]{Resources: *desiredResources(r.io.Desired.Resources)}
-
-	log.V(1).Info("Unmarshalling observed composite from FunctionIO")
-	var o T
-	observed := &o
-	err = json.Unmarshal(r.io.Observed.Composite.Resource.Raw, observed)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal composite: %w", err)
+	r.Observed = ObservedResources{
+		resources: *observedResources(r.io.Observed.Resources),
+		composite: &r.io.Observed.Composite,
 	}
-	r.Observed.Composite = *observed
-
-	log.V(1).Info("Unmarshalling desired composite from FunctionIO")
-	var d T
-	desired := &d
-	err = json.Unmarshal(r.io.Observed.Composite.Resource.Raw, desired)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal composite: %w", err)
+	r.Desired = DesiredResources{
+		resources: *desiredResources(r.io.Desired.Resources),
+		composite: &r.io.Desired.Composite,
 	}
-	r.Desired.Composite = *desired
 
 	return &r, nil
 }

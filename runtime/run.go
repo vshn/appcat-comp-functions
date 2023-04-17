@@ -2,21 +2,16 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/urfave/cli/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
 // Exec reads FunctionIO from stdin and return the desired state via transform function
-func Exec[T any, O interface {
-	client.Object
-	*T
-}](ctx context.Context, log logr.Logger, runtime *Runtime[T, O], transform Transform[T, O]) error {
+func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Transform) error {
 
 	log.V(1).Info("Executing transformation function")
 	res := transform.TransformFunc(ctx, runtime).Resolve()
@@ -24,20 +19,16 @@ func Exec[T any, O interface {
 		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
 	}
 	runtime.io.Results = append(runtime.io.Results, res)
+	/*
+		runtime.io.Desired.Composite.Resource.Raw = runtime.Desired.composite.Resource.Raw
+		runtime.io.Desired.Composite.ConnectionDetails = runtime.Desired.composite.ConnectionDetails
 
-	log.V(1).Info("Marshalling desired composite")
-	dRaw, err := json.Marshal(runtime.Desired.Composite)
-	if err != nil {
-		return fmt.Errorf("failed to marshal desired composite: %w", err)
-	}
-	runtime.io.Desired.Composite.Resource.Raw = dRaw
-	runtime.io.Desired.Composite.ConnectionDetails = runtime.Desired.ConnectionDetails
+		runtime.io.Desired.Resources = make([]xfnv1alpha1.DesiredResource, len(runtime.Desired.resources))
+		for i, r := range runtime.Desired.resources {
+			runtime.io.Desired.Resources[i] = xfnv1alpha1.DesiredResource(r.(desiredResource))
+		}
 
-	log.V(1).Info("Marshalling desired resources")
-	runtime.io.Desired.Resources = make([]xfnv1alpha1.DesiredResource, len(runtime.Desired.Resources))
-	for i, r := range runtime.Desired.Resources {
-		runtime.io.Desired.Resources[i] = xfnv1alpha1.DesiredResource(r.(desiredResource))
-	}
+	*/
 
 	return nil
 }
@@ -55,14 +46,11 @@ func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) error {
 	return nil
 }
 
-func RunCommand[T any, O interface {
-	client.Object
-	*T
-}](ctx *cli.Context, transforms []Transform[T, O]) error {
+func RunCommand(ctx *cli.Context, transforms []Transform) error {
 	log := logr.FromContextOrDiscard(ctx.Context)
 
 	log.V(1).Info("Creating new runtime")
-	funcIO, err := NewRuntime[T, O](ctx.Context)
+	funcIO, err := NewRuntime(ctx.Context)
 	if err != nil {
 		return err
 	}

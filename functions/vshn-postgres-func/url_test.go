@@ -44,7 +44,7 @@ func TestTransform(t *testing.T) {
 
 		// Then
 		assert.Equal(t, expectResult, result)
-		assert.Equal(t, expectURL, r.Desired.ConnectionDetails[0].Value)
+		assert.Equal(t, expectURL, r.Desired.GetCompositeConnectionDetails(ctx)[0].Value)
 	})
 }
 

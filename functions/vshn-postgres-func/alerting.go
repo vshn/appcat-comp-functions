@@ -14,7 +14,7 @@ import (
 )
 
 // AddUserAlerting adds user alerting to the PostgreSQL instance.
-func AddUserAlerting(ctx context.Context, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) runtime.Result {
+func AddUserAlerting(ctx context.Context, iof *runtime.Runtime) runtime.Result {
 	log := controllerruntime.LoggerFrom(ctx)
 	log.Info("Check if alerting references are set")
 
@@ -24,7 +24,11 @@ func AddUserAlerting(ctx context.Context, iof *runtime.Runtime[vshnv1.VSHNPostgr
 	if err != nil {
 		return runtime.NewFatalErr(ctx, "Cannot add scheme builder to scheme", err)
 	}
-	comp := &iof.Desired.Composite
+	comp := &vshnv1.VSHNPostgreSQL{}
+	err = iof.Observed.GetComposite(ctx, comp)
+	if err != nil {
+		return runtime.NewFatalErr(ctx, "Cannot get composite from function io", err)
+	}
 
 	monitoringSpec := comp.Spec.Parameters.Monitoring
 
@@ -37,7 +41,7 @@ func AddUserAlerting(ctx context.Context, iof *runtime.Runtime[vshnv1.VSHNPostgr
 		refName := comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef
 		log.Info("Found an AlertmanagerConfigRef, deploying...", "refName", refName)
 
-		err = deployAlertmanagerFromRef(ctx, &iof.Desired.Composite, iof)
+		err = deployAlertmanagerFromRef(ctx, comp, iof)
 		if err != nil {
 			return runtime.NewFatalErr(ctx, "Could not deploy alertmanager from ref", err)
 		}
@@ -66,11 +70,16 @@ func AddUserAlerting(ctx context.Context, iof *runtime.Runtime[vshnv1.VSHNPostgr
 			return runtime.NewFatalErr(ctx, "Cannot deploy secret ref", err)
 		}
 	}
-
+	/*
+		err = iof.Desired.SetComposite(ctx, comp)
+		if err != nil {
+			return runtime.NewFatalErr(ctx, "Cannot set desired composite", err)
+		}
+	*/
 	return runtime.NewNormal()
 }
 
-func deployAlertmanagerFromRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
+func deployAlertmanagerFromRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	ac := &alertmanagerv1alpha1.AlertmanagerConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "postgresql-alertmanagerconfig",
@@ -94,7 +103,7 @@ func deployAlertmanagerFromRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL,
 	return iof.Desired.PutIntoKubeObject(ctx, ac, comp.Name+"-alertmanagerconfig", xRef)
 }
 
-func deployAlertmanagerFromTemplate(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
+func deployAlertmanagerFromTemplate(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	ac := &alertmanagerv1alpha1.AlertmanagerConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
@@ -106,7 +115,7 @@ func deployAlertmanagerFromTemplate(ctx context.Context, comp *vshnv1.VSHNPostgr
 	return iof.Desired.PutIntoKubeObject(ctx, ac, comp.Name+"-alertmanagerconfig")
 }
 
-func deploySecretRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]) error {
+func deploySecretRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,

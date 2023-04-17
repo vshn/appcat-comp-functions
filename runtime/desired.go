@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,19 +12,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type DesiredResources[T any, O interface {
-	client.Object
-	*T
-}] struct {
-	Resources         []Resource
-	Composite         T
-	ConnectionDetails []xfnv1alpha1.ExplicitConnectionDetail
+type DesiredResources struct {
+	resources []Resource
+	composite *xfnv1alpha1.DesiredComposite
 }
 
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the desired array of the FunctionIO.
-func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, &d.Resources, kon)
+func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
+	ko, err := getKubeObjectFrom(ctx, &d.resources, kon)
 	if err != nil {
 		return err
 	}
@@ -34,8 +31,8 @@ func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client
 // A relevant resource is any resource that is not a Kubernetes Object resource.
 // The function also checks resources inside Kubernetes Objects in case unmarshalling
 // does not fail.
-func (d *DesiredResources[T, O]) ResourceExists(name string) bool {
-	for _, r := range d.Resources {
+func (d *DesiredResources) ResourceExists(name string) bool {
+	for _, r := range d.resources {
 		var o client.Object
 		err := json.Unmarshal(r.GetRaw(), o)
 		if err != nil {
@@ -61,7 +58,7 @@ func (d *DesiredResources[T, O]) ResourceExists(name string) bool {
 }
 
 // PutIntoKubeObject adds or updates the desired resource into its kube object
-func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
+func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	ko := &xkube.Object{
@@ -73,7 +70,7 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 			References: refs,
 		},
 	}
-	err := getFrom(ctx, &d.Resources, ko, kon)
+	err := getFrom(ctx, &d.resources, ko, kon)
 	if err != nil && err != ErrNotFound {
 		return err
 	}
@@ -89,17 +86,17 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 
 // GetManagedResource will unmarshall the resource from the desired array.
 // This will return any changes that a previous function has made to the desired array.
-func (d *DesiredResources[T, O]) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
-	return getFrom(ctx, &d.Resources, obj, resName)
+func (d *DesiredResources) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
+	return getFrom(ctx, &d.resources, obj, resName)
 }
 
 // PutManagedResource will add the object as is to the FunctionIO desired array.
 // It assumes that the given object is adheres to Crossplane's ManagedResource model.
-func (d *DesiredResources[T, O]) PutManagedResource(obj client.Object) error {
+func (d *DesiredResources) PutManagedResource(obj client.Object) error {
 	return d.put(obj, obj.GetName())
 }
 
-func (d *DesiredResources[T, O]) put(obj client.Object, resName string) error {
+func (d *DesiredResources) put(obj client.Object, resName string) error {
 	kind, _, err := s.ObjectKinds(obj)
 	if err != nil {
 		return err
@@ -111,14 +108,14 @@ func (d *DesiredResources[T, O]) put(obj client.Object, resName string) error {
 		return err
 	}
 
-	for _, res := range d.Resources {
+	for _, res := range d.resources {
 		if res.GetName() == resName {
 			res.SetRaw(rawData)
 			return nil
 		}
 	}
 
-	d.Resources = append(d.Resources, desiredResource(
+	d.resources = append(d.resources, desiredResource(
 		xfnv1alpha1.DesiredResource{
 			Name: resName,
 			Resource: runtime.RawExtension{
@@ -127,6 +124,36 @@ func (d *DesiredResources[T, O]) put(obj client.Object, resName string) error {
 		},
 	))
 	return nil
+}
+
+// GetComposite will unmarshall the desired composite from the function io to the given object.
+func (d *DesiredResources) GetComposite(_ context.Context, obj client.Object) error {
+	err := json.Unmarshal(d.composite.Resource.Raw, obj)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshall observed composite: %v", err)
+	}
+	return nil
+}
+
+// SetComposite will set the new desired composite to the function from the given object.
+func (d *DesiredResources) SetComposite(_ context.Context, obj client.Object) error {
+	raw, err := json.Marshal(obj)
+	if err != nil {
+		return fmt.Errorf("cannot marshal desired composite: %v", err)
+	}
+	d.composite.Resource.Raw = raw
+	return nil
+}
+
+// GetCompositeConnectionDetails will return the connection details of the desired composite
+func (d *DesiredResources) GetCompositeConnectionDetails(_ context.Context) []xfnv1alpha1.ExplicitConnectionDetail {
+	return d.composite.ConnectionDetails
+}
+
+// AddToCompositeConnectionDetails will append a new connection detail to the slice of connection details
+// from this observed composite
+func (d *DesiredResources) AddToCompositeConnectionDetails(_ context.Context, cd xfnv1alpha1.ExplicitConnectionDetail) {
+	d.composite.ConnectionDetails = append(d.composite.ConnectionDetails, cd)
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource

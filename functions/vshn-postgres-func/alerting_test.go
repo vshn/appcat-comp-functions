@@ -6,6 +6,7 @@ import (
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/vshn/appcat-comp-functions/runtime"
+	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	v1 "k8s.io/api/core/v1"
 	"testing"
 
@@ -73,18 +74,20 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 		kubeObject := &xkube.Object{}
 		assert.NoError(t, iof.Desired.GetManagedResource(ctx, resName, kubeObject))
 
-		assert.Equal(t, iof.Desired.Composite.Labels["crossplane.io/claim-namespace"], kubeObject.Spec.References[0].PatchesFrom.Namespace)
-		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
+		comp := &vshnv1.VSHNPostgreSQL{}
+		assert.NoError(t, iof.Observed.GetComposite(ctx, comp))
+		assert.Equal(t, comp.Labels["crossplane.io/claim-namespace"], kubeObject.Spec.References[0].PatchesFrom.Namespace)
+		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
 		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
-		assert.Equal(t, iof.Desired.Composite.Status.InstanceNamespace, alertConfig.GetNamespace())
+		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
 		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, secret, secretName))
 
-		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
+		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
 }
 
@@ -105,14 +108,16 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 		assert.Empty(t, kubeObject.Spec.References)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
+		comp := &vshnv1.VSHNPostgreSQL{}
 		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
-		assert.Equal(t, iof.Desired.Composite.Status.InstanceNamespace, alertConfig.GetNamespace())
-		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
+		assert.NoError(t, iof.Observed.GetComposite(ctx, comp))
+		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
+		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
 		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, secret, secretName))
 
-		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
+		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
 }

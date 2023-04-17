@@ -2,23 +2,21 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ObservedResources[T any, O interface {
-	client.Object
-	*T
-}] struct {
-	Resources         []Resource
-	Composite         T
-	ConnectionDetails []xfnv1alpha1.ExplicitConnectionDetail
+type ObservedResources struct {
+	resources []Resource
+	composite *xfnv1alpha1.ObservedComposite
 }
 
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the observed array of the FunctionIO.
-func (o *ObservedResources[T, O]) GetFromKubeObject(ctx context.Context, obj client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, &o.Resources, kon)
+func (o *ObservedResources) GetFromKubeObject(ctx context.Context, obj client.Object, kon string) error {
+	ko, err := getKubeObjectFrom(ctx, &o.resources, kon)
 	if err != nil {
 		return err
 	}
@@ -27,8 +25,22 @@ func (o *ObservedResources[T, O]) GetFromKubeObject(ctx context.Context, obj cli
 
 // GetManagedResource will unmarshall the managed resource with the given name into the given object.
 // It reads from the Observed array.
-func (o *ObservedResources[T, O]) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
-	return getFrom(ctx, &o.Resources, obj, resName)
+func (o *ObservedResources) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
+	return getFrom(ctx, &o.resources, obj, resName)
+}
+
+// GetComposite will unmarshall the observed composite from the function io to the given object.
+func (o *ObservedResources) GetComposite(_ context.Context, obj client.Object) error {
+	err := json.Unmarshal(o.composite.Resource.Raw, obj)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshall observed composite: %v", err)
+	}
+	return nil
+}
+
+// GetCompositeConnectionDetails will return the connection details of the observed composite
+func (o *ObservedResources) GetCompositeConnectionDetails(_ context.Context) *[]xfnv1alpha1.ExplicitConnectionDetail {
+	return &o.composite.ConnectionDetails
 }
 
 // observedResource is a wrapper around xfnv1alpha1.ObservedResource

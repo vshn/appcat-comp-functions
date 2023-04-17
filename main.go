@@ -6,11 +6,9 @@ import (
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	"os"
-
-	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 )
 
-var postgresFunctions = []runtime.Transform[vshnv1.VSHNPostgreSQL, *vshnv1.VSHNPostgreSQL]{
+var postgresFunctions = []runtime.Transform{
 	{
 		Name:          "url-connection-details",
 		TransformFunc: vp.AddUrlToConnectionDetails,
