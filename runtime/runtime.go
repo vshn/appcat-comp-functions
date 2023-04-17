@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
-	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -103,27 +102,28 @@ func fromKubeObject(kobj *xkube.Object, obj client.Object) error {
 	return json.Unmarshal(kobj.Status.AtProvider.Manifest.Raw, obj)
 }
 
-func getKubeObjectFrom(ctx context.Context, resources *[]Resource, o client.Object, kon string) (*xkube.Object, error) {
+func getKubeObjectFrom(ctx context.Context, resources *[]Resource, kon string) (*xkube.Object, error) {
 	log := controllerruntime.LoggerFrom(ctx)
-
+	log.V(1).Info("Getting kube object from resources", "name", kon)
 	ko := &xkube.Object{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       xkube.ObjectKind,
 			APIVersion: xkube.ObjectKindAPIVersion,
 		},
 	}
-	err := getFrom(resources, ko, kon)
+	err := getFrom(ctx, resources, ko, kon)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get unmarshall kubernetes object: %w", err)
+		return nil, fmt.Errorf("cannot find resourcet: %w", err)
 	}
 
-	log.V(1).Info("Unmarshalling object from kube object", "object type", reflect.TypeOf(o))
 	return ko, nil
 }
 
-func getFrom(resources *[]Resource, obj client.Object, resName string) error {
+func getFrom(ctx context.Context, resources *[]Resource, obj client.Object, resName string) error {
+	log := controllerruntime.LoggerFrom(ctx)
 	gvk := obj.GetObjectKind()
 
+	log.V(1).Info("Searching resource by resource name", "name", resName)
 	for _, res := range *resources {
 		if res.GetName() == resName {
 			err := yaml.Unmarshal(res.GetRaw(), obj)
@@ -138,6 +138,8 @@ func getFrom(resources *[]Resource, obj client.Object, resName string) error {
 			}
 		}
 	}
+
+	log.V(1).Info("No resource found", "name", resName)
 	return ErrNotFound
 }
 

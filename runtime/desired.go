@@ -23,7 +23,7 @@ type DesiredResources[T any, O interface {
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the desired array of the FunctionIO.
 func (d *DesiredResources[T, O]) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
-	ko, err := getKubeObjectFrom(ctx, &d.Resources, o, kon)
+	ko, err := getKubeObjectFrom(ctx, &d.Resources, kon)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 			References: refs,
 		},
 	}
-	err := getFrom(&d.Resources, ko, kon)
+	err := getFrom(ctx, &d.Resources, ko, kon)
 	if err != nil && err != ErrNotFound {
 		return err
 	}
@@ -89,8 +89,8 @@ func (d *DesiredResources[T, O]) PutIntoKubeObject(ctx context.Context, o client
 
 // GetManagedResource will unmarshall the resource from the desired array.
 // This will return any changes that a previous function has made to the desired array.
-func (d *DesiredResources[T, O]) GetManagedResource(resName string, obj client.Object) error {
-	return getFrom(&d.Resources, obj, resName)
+func (d *DesiredResources[T, O]) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
+	return getFrom(ctx, &d.Resources, obj, resName)
 }
 
 // PutManagedResource will add the object as is to the FunctionIO desired array.
