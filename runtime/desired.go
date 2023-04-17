@@ -156,6 +156,22 @@ func (d *DesiredResources) AddToCompositeConnectionDetails(_ context.Context, cd
 	d.composite.ConnectionDetails = append(d.composite.ConnectionDetails, cd)
 }
 
+// ListResources return the list of managed resources from desired object
+func (d *DesiredResources) ListResources() []Resource {
+	return d.resources
+}
+
+// RemoveResource removes a resource by name from the managed resources
+func (d *DesiredResources) RemoveResource(name string) []Resource {
+	for i, r := range d.resources {
+		if r.GetName() == name {
+			d.resources = append(d.resources[:i], d.resources[i+1:]...)
+			return d.resources
+		}
+	}
+	return d.resources
+}
+
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource
 // so we can satisfy the Resource interface.
 type desiredResource xfnv1alpha1.DesiredResource

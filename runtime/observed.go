@@ -23,13 +23,13 @@ func (o *ObservedResources) GetFromKubeObject(ctx context.Context, obj client.Ob
 	return fromKubeObject(ko, obj)
 }
 
-// GetManagedResource will unmarshall the managed resource with the given name into the given object.
+// GetManagedResource unmarshalls the managed resource with the given name into the given object.
 // It reads from the Observed array.
 func (o *ObservedResources) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
 	return getFrom(ctx, &o.resources, obj, resName)
 }
 
-// GetComposite will unmarshall the observed composite from the function io to the given object.
+// GetComposite unmarshalls the observed composite from the function io to the given object.
 func (o *ObservedResources) GetComposite(_ context.Context, obj client.Object) error {
 	err := json.Unmarshal(o.composite.Resource.Raw, obj)
 	if err != nil {
@@ -38,9 +38,14 @@ func (o *ObservedResources) GetComposite(_ context.Context, obj client.Object) e
 	return nil
 }
 
-// GetCompositeConnectionDetails will return the connection details of the observed composite
+// GetCompositeConnectionDetails returns the connection details of the observed composite
 func (o *ObservedResources) GetCompositeConnectionDetails(_ context.Context) *[]xfnv1alpha1.ExplicitConnectionDetail {
 	return &o.composite.ConnectionDetails
+}
+
+// ListResources return the list of managed resources from observed object
+func (o *ObservedResources) ListResources() []Resource {
+	return o.resources
 }
 
 // observedResource is a wrapper around xfnv1alpha1.ObservedResource
