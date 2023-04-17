@@ -66,6 +66,9 @@ func NewRuntime[T any, O interface {
 	log.V(1).Info("Unmarshalling FunctionIO from stdin")
 	r := Runtime[T, O]{}
 	err = yaml.Unmarshal(x, &r.io)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal function io: %w", err)
+	}
 	r.Observed = ObservedResources[T, O]{Resources: *observedResources(r.io.Observed.Resources)}
 	r.Desired = DesiredResources[T, O]{Resources: *desiredResources(r.io.Desired.Resources)}
 

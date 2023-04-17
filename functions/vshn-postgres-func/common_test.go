@@ -30,10 +30,3 @@ func getFunctionIo(funcIO *runtime.Runtime[v1.VSHNPostgreSQL, *v1.VSHNPostgreSQL
 	field := reflect.ValueOf(funcIO).Elem().FieldByName("io")
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface().(xfnv1alpha1.FunctionIO)
 }
-
-func setFunctionIO(funcIO *runtime.Runtime[v1.VSHNPostgreSQL, *v1.VSHNPostgreSQL], value xfnv1alpha1.FunctionIO) {
-	field := reflect.ValueOf(funcIO).Elem().FieldByName("io")
-	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).
-		Elem().
-		Set(reflect.ValueOf(value))
-}
