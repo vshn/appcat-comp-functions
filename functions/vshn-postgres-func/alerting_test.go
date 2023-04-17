@@ -71,7 +71,7 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
-		assert.NoError(t, iof.Desired.GetManagedResource(resName, kubeObject))
+		assert.NoError(t, iof.Desired.GetManagedResource(ctx, resName, kubeObject))
 
 		assert.Equal(t, iof.Desired.Composite.Labels["crossplane.io/claim-namespace"], kubeObject.Spec.References[0].PatchesFrom.Namespace)
 		assert.Equal(t, iof.Desired.Composite.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
@@ -100,7 +100,7 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
-		assert.NoError(t, iof.Desired.GetManagedResource(resName, kubeObject))
+		assert.NoError(t, iof.Desired.GetManagedResource(ctx, resName, kubeObject))
 
 		assert.Empty(t, kubeObject.Spec.References)
 
