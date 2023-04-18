@@ -64,11 +64,11 @@ func NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 	r.Observed = ObservedResources{
 		resources: *observedResources(r.io.Observed.Resources),
-		composite: &r.io.Observed.Composite,
+		composite: r.io.Observed.Composite,
 	}
 	r.Desired = DesiredResources{
 		resources: *desiredResources(r.io.Desired.Resources),
-		composite: &r.io.Desired.Composite,
+		composite: r.io.Desired.Composite,
 	}
 
 	return &r, nil

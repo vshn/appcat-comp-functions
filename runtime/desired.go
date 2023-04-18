@@ -14,7 +14,7 @@ import (
 
 type DesiredResources struct {
 	resources []Resource
-	composite *xfnv1alpha1.DesiredComposite
+	composite xfnv1alpha1.DesiredComposite
 }
 
 // GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
