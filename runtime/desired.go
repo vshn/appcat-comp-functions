@@ -22,16 +22,18 @@ type DesiredResources struct {
 func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
 	ko, err := getKubeObjectFrom(ctx, &d.resources, kon)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot get resource from kube object: %v", err)
 	}
-	return fromKubeObject(ko, o)
+	return fromKubeObject(ctx, ko, o)
 }
 
 // ResourceExists check weather a relevant resource exists in this slice.
 // A relevant resource is any resource that is not a Kubernetes Object resource.
 // The function also checks resources inside Kubernetes Objects in case unmarshalling
 // does not fail.
-func (d *DesiredResources) ResourceExists(name string) bool {
+func (d *DesiredResources) ResourceExists(ctx context.Context, name string) bool {
+	log := controllerruntime.LoggerFrom(ctx)
+	log.V(1).Info("Checking if resource exists", "resource name", name)
 	for _, r := range d.resources {
 		var o client.Object
 		err := json.Unmarshal(r.GetRaw(), o)
@@ -75,13 +77,13 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 		return err
 	}
 
-	log.V(1).Info("Put object into kube object", "object", o, "kube object name", kon)
+	log.V(1).Info("Preparing to put object into kube object", "object", o, "kube object name", kon)
 	err = updateKubeObject(o, ko)
 	if err != nil {
 		return err
 	}
 
-	return d.put(ko, kon)
+	return d.put(ctx, ko, kon)
 }
 
 // GetManagedResource will unmarshall the resource from the desired array.
@@ -92,29 +94,33 @@ func (d *DesiredResources) GetManagedResource(ctx context.Context, resName strin
 
 // PutManagedResource will add the object as is to the FunctionIO desired array.
 // It assumes that the given object is adheres to Crossplane's ManagedResource model.
-func (d *DesiredResources) PutManagedResource(obj client.Object) error {
-	return d.put(obj, obj.GetName())
+func (d *DesiredResources) PutManagedResource(ctx context.Context, obj client.Object) error {
+	return d.put(ctx, obj, obj.GetName())
 }
 
-func (d *DesiredResources) put(obj client.Object, resName string) error {
+func (d *DesiredResources) put(ctx context.Context, obj client.Object, resName string) error {
+	log := controllerruntime.LoggerFrom(ctx)
+	log.V(1).Info("Putting object into kube object", "object", obj, "kube object name", resName)
 	kind, _, err := s.ObjectKinds(obj)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot get object kinds from %s: %v", obj.GetName(), err)
 	}
 
 	obj.GetObjectKind().SetGroupVersionKind(kind[0])
 	rawData, err := json.Marshal(obj)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot marshall object %s: %v", obj.GetName(), err)
 	}
 
 	for _, res := range d.resources {
 		if res.GetName() == resName {
+			log.V(1).Info("Updating existing kube object with resource", "object", obj, "kube object name", resName)
 			res.SetRaw(rawData)
 			return nil
 		}
 	}
 
+	log.V(1).Info("No kube object found, adding new one with resource", "object", obj, "kube object name", resName)
 	d.resources = append(d.resources, desiredResource(
 		xfnv1alpha1.DesiredResource{
 			Name: resName,
@@ -157,19 +163,22 @@ func (d *DesiredResources) AddToCompositeConnectionDetails(_ context.Context, cd
 }
 
 // ListResources return the list of managed resources from desired object
-func (d *DesiredResources) ListResources() []Resource {
+func (d *DesiredResources) ListResources(_ context.Context) []Resource {
 	return d.resources
 }
 
 // RemoveResource removes a resource by name from the managed resources
-func (d *DesiredResources) RemoveResource(name string) bool {
+// expect an error if resource not found
+func (d *DesiredResources) RemoveResource(ctx context.Context, name string) error {
+	log := controllerruntime.LoggerFrom(ctx)
 	for i, r := range d.resources {
 		if r.GetName() == name {
+			log.V(1).Info("Removing resource from desired resources", "resource name", name)
 			d.resources = append(d.resources[:i], d.resources[i+1:]...)
-			return true
+			return nil
 		}
 	}
-	return false
+	return fmt.Errorf("cannot delete resource %s, resource not found", name)
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource

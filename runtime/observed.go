@@ -20,7 +20,7 @@ func (o *ObservedResources) GetFromKubeObject(ctx context.Context, obj client.Ob
 	if err != nil {
 		return err
 	}
-	return fromKubeObject(ko, obj)
+	return fromKubeObject(ctx, ko, obj)
 }
 
 // GetManagedResource unmarshalls the managed resource with the given name into the given object.
@@ -44,7 +44,7 @@ func (o *ObservedResources) GetCompositeConnectionDetails(_ context.Context) *[]
 }
 
 // ListResources return the list of managed resources from observed object
-func (o *ObservedResources) ListResources() []Resource {
+func (o *ObservedResources) ListResources(_ context.Context) []Resource {
 	return o.resources
 }
 

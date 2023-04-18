@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
+	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -74,7 +75,9 @@ func NewRuntime(ctx context.Context) (*Runtime, error) {
 	return &r, nil
 }
 
-func fromKubeObject(kobj *xkube.Object, obj client.Object) error {
+func fromKubeObject(ctx context.Context, kobj *xkube.Object, obj client.Object) error {
+	log := controllerruntime.LoggerFrom(ctx)
+	log.V(1).Info("Unmarshalling resource from kube object", "kube object", kobj, reflect.TypeOf(obj).Kind())
 	if kobj.Status.AtProvider.Manifest.Raw == nil {
 		if kobj.Spec.ForProvider.Manifest.Raw == nil {
 			return fmt.Errorf("no resource in kubernetes object")
@@ -148,17 +151,15 @@ func observedResources(or []xfnv1alpha1.ObservedResource) *[]Resource {
 func updateKubeObject(obj client.Object, ko *xkube.Object) error {
 	kind, _, err := s.ObjectKinds(obj)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot get object kinds from %s: %v", obj.GetName(), err)
 	}
 	obj.GetObjectKind().SetGroupVersionKind(kind[0])
 
 	rawData, err := json.Marshal(obj)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot marshall object %s: %v", obj.GetName(), err)
 	}
-
 	ko.Spec.ForProvider.Manifest = runtime.RawExtension{Raw: rawData}
-
 	return nil
 }
 
