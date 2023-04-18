@@ -19,16 +19,14 @@ func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Tran
 		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
 	}
 	runtime.io.Results = append(runtime.io.Results, res)
-	/*
-		runtime.io.Desired.Composite.Resource.Raw = runtime.Desired.composite.Resource.Raw
-		runtime.io.Desired.Composite.ConnectionDetails = runtime.Desired.composite.ConnectionDetails
 
-		runtime.io.Desired.Resources = make([]xfnv1alpha1.DesiredResource, len(runtime.Desired.resources))
-		for i, r := range runtime.Desired.resources {
-			runtime.io.Desired.Resources[i] = xfnv1alpha1.DesiredResource(r.(desiredResource))
-		}
+	runtime.io.Desired.Composite.Resource.Raw = runtime.Desired.composite.Resource.Raw
+	runtime.io.Desired.Composite.ConnectionDetails = runtime.Desired.composite.ConnectionDetails
 
-	*/
+	runtime.io.Desired.Resources = make([]xfnv1alpha1.DesiredResource, len(runtime.Desired.resources))
+	for i, r := range runtime.Desired.resources {
+		runtime.io.Desired.Resources[i] = xfnv1alpha1.DesiredResource(r.(desiredResource))
+	}
 
 	return nil
 }

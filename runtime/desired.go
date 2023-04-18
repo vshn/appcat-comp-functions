@@ -162,14 +162,14 @@ func (d *DesiredResources) ListResources() []Resource {
 }
 
 // RemoveResource removes a resource by name from the managed resources
-func (d *DesiredResources) RemoveResource(name string) []Resource {
+func (d *DesiredResources) RemoveResource(name string) bool {
 	for i, r := range d.resources {
 		if r.GetName() == name {
 			d.resources = append(d.resources[:i], d.resources[i+1:]...)
-			return d.resources
+			return true
 		}
 	}
-	return d.resources
+	return false
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource
