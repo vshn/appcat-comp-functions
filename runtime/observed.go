@@ -25,7 +25,7 @@ func (o *ObservedResources) GetFromKubeObject(ctx context.Context, obj client.Ob
 
 // GetManagedResource unmarshalls the managed resource with the given name into the given object.
 // It reads from the Observed array.
-func (o *ObservedResources) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
+func (o *ObservedResources) GetManagedResource(ctx context.Context, obj client.Object, resName string) error {
 	return getFrom(ctx, &o.resources, obj, resName)
 }
 

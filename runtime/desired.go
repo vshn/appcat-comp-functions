@@ -27,38 +27,6 @@ func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Objec
 	return fromKubeObject(ctx, ko, o)
 }
 
-// ResourceExists check weather a relevant resource exists in this slice.
-// A relevant resource is any resource that is not a Kubernetes Object resource.
-// The function also checks resources inside Kubernetes Objects in case unmarshalling
-// does not fail.
-func (d *DesiredResources) ResourceExists(ctx context.Context, name string) bool {
-	log := controllerruntime.LoggerFrom(ctx)
-	log.V(1).Info("Checking if resource exists", "resource name", name)
-	for _, r := range d.resources {
-		var o client.Object
-		err := json.Unmarshal(r.GetRaw(), o)
-		if err != nil {
-			return false
-		}
-		if o.GetObjectKind().GroupVersionKind() == xkube.ObjectGroupVersionKind {
-			ko := o.(*xkube.Object)
-			var o client.Object
-			err = json.Unmarshal(ko.Spec.ForProvider.Manifest.Raw, o)
-			if err != nil {
-				return false
-			}
-			if o.GetName() == name {
-				return true
-			}
-		} else {
-			if r.GetName() == name {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // PutIntoKubeObject adds or updates the desired resource into its kube object
 func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
 	log := controllerruntime.LoggerFrom(ctx)
@@ -67,6 +35,9 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 		TypeMeta: metav1.TypeMeta{
 			Kind:       xkube.ObjectKind,
 			APIVersion: xkube.ObjectKindAPIVersion,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: kon,
 		},
 		Spec: xkube.ObjectSpec{
 			References: refs,
@@ -86,13 +57,13 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 	return d.put(ctx, ko, kon)
 }
 
-// GetManagedResource will unmarshall the resource from the desired array.
+// GetManagedResource unmarshalls the resource from the desired array.
 // This will return any changes that a previous function has made to the desired array.
-func (d *DesiredResources) GetManagedResource(ctx context.Context, resName string, obj client.Object) error {
+func (d *DesiredResources) GetManagedResource(ctx context.Context, obj client.Object, resName string) error {
 	return getFrom(ctx, &d.resources, obj, resName)
 }
 
-// PutManagedResource will add the object as is to the FunctionIO desired array.
+// PutManagedResource adds the object as is to the FunctionIO desired array.
 // It assumes that the given object is adheres to Crossplane's ManagedResource model.
 func (d *DesiredResources) PutManagedResource(ctx context.Context, obj client.Object) error {
 	return d.put(ctx, obj, obj.GetName())
@@ -132,16 +103,16 @@ func (d *DesiredResources) put(ctx context.Context, obj client.Object, resName s
 	return nil
 }
 
-// GetComposite will unmarshall the desired composite from the function io to the given object.
+// GetComposite unmarshalls the desired composite from the function io to the given object.
 func (d *DesiredResources) GetComposite(_ context.Context, obj client.Object) error {
 	err := json.Unmarshal(d.composite.Resource.Raw, obj)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshall observed composite: %v", err)
+		return fmt.Errorf("cannot unmarshall desired composite: %v", err)
 	}
 	return nil
 }
 
-// SetComposite will set the new desired composite to the function from the given object.
+// SetComposite sets a new desired composite to the function from the given object.
 func (d *DesiredResources) SetComposite(_ context.Context, obj client.Object) error {
 	raw, err := json.Marshal(obj)
 	if err != nil {
@@ -151,18 +122,42 @@ func (d *DesiredResources) SetComposite(_ context.Context, obj client.Object) er
 	return nil
 }
 
-// GetCompositeConnectionDetails will return the connection details of the desired composite
+// GetCompositeConnectionDetails returns the connection details of the desired composite
 func (d *DesiredResources) GetCompositeConnectionDetails(_ context.Context) []xfnv1alpha1.ExplicitConnectionDetail {
 	return d.composite.ConnectionDetails
 }
 
-// AddToCompositeConnectionDetails will append a new connection detail to the slice of connection details
-// from this observed composite
-func (d *DesiredResources) AddToCompositeConnectionDetails(_ context.Context, cd xfnv1alpha1.ExplicitConnectionDetail) {
+// PutCompositeConnectionDetail appends a connection detail to the connection details slice
+// of this desired composite
+func (d *DesiredResources) PutCompositeConnectionDetail(ctx context.Context, cd xfnv1alpha1.ExplicitConnectionDetail) {
+	log := controllerruntime.LoggerFrom(ctx)
+	for i, c := range d.composite.ConnectionDetails {
+		if cd.Name == c.Name {
+			log.V(1).Info("Updating existing desired composite connection detail", "cd", cd)
+			d.composite.ConnectionDetails[i] = cd
+			return
+		}
+	}
+	log.V(1).Info("Adding desired composite connection detail", "cd", cd)
 	d.composite.ConnectionDetails = append(d.composite.ConnectionDetails, cd)
 }
 
-// ListResources return the list of managed resources from desired object
+// RemoveCompositeConnectionDetail removes a connection detail from the slice of connection details
+// of this desired composite
+func (d *DesiredResources) RemoveCompositeConnectionDetail(ctx context.Context, cd xfnv1alpha1.ExplicitConnectionDetail) error {
+	log := controllerruntime.LoggerFrom(ctx)
+	cds := d.composite.ConnectionDetails
+	for i, c := range cds {
+		if cd.Name == c.Name {
+			log.V(1).Info("Removing connection detail from desired connection details slice", "cd", cd)
+			d.composite.ConnectionDetails = append(cds[:i], cds[i+1:]...)
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+// ListResources returns the list of managed resources from desired object
 func (d *DesiredResources) ListResources(_ context.Context) []Resource {
 	return d.resources
 }
@@ -178,7 +173,7 @@ func (d *DesiredResources) RemoveResource(ctx context.Context, name string) erro
 			return nil
 		}
 	}
-	return fmt.Errorf("cannot delete resource %s, resource not found", name)
+	return ErrNotFound
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource

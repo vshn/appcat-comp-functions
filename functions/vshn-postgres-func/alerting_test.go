@@ -72,7 +72,7 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
-		assert.NoError(t, iof.Desired.GetManagedResource(ctx, resName, kubeObject))
+		assert.NoError(t, iof.Desired.GetManagedResource(ctx, kubeObject, resName))
 
 		comp := &vshnv1.VSHNPostgreSQL{}
 		assert.NoError(t, iof.Observed.GetComposite(ctx, comp))
@@ -103,7 +103,7 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
-		assert.NoError(t, iof.Desired.GetManagedResource(ctx, resName, kubeObject))
+		assert.NoError(t, iof.Desired.GetManagedResource(ctx, kubeObject, resName))
 
 		assert.Empty(t, kubeObject.Spec.References)
 

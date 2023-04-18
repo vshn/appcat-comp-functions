@@ -58,7 +58,7 @@ func AddUrlToConnectionDetails(ctx context.Context, iof *runtime.Runtime) runtim
 	if val == "" {
 		return runtime.NewWarning(ctx, "User, pass, host, port or db value is missing from connection secret, skipping transformation")
 	}
-	iof.Desired.AddToCompositeConnectionDetails(ctx, v1alpha1.ExplicitConnectionDetail{
+	iof.Desired.PutCompositeConnectionDetail(ctx, v1alpha1.ExplicitConnectionDetail{
 		Name:  PostgresqlUrl,
 		Value: val,
 	})
