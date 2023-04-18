@@ -1,9 +1,8 @@
-// TODO: Edit navigation
 * xref:index.adoc[Introduction]
 * https://github.com/vshn/go-bootstrap/releases[Changelog,window=_blank] 🔗
 
 .Tutorials
-//* xref:tutorials/example.adoc[Example Tutorial]
+// * xref:explanations/runtime.adoc[Runtime Library]
 
 .How To
 //* xref:how-tos/example.adoc[Example How-To]
@@ -12,4 +11,5 @@
 //* xref:references/example.adoc[Example Reference]
 
 .Explanation
+* xref:explanations/runtime.adoc[Runtime Library]
 * xref:explanations/vshn-postgres.adoc[VSHN Postgres Functions]
