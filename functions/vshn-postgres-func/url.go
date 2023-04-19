@@ -48,7 +48,7 @@ func AddUrlToConnectionDetails(ctx context.Context, iof *runtime.Runtime) runtim
 	log.Info("Getting connection secret from managed kubernetes object")
 	s := &v1.Secret{}
 
-	err = iof.Observed.GetFromKubeObject(ctx, s, connectionSecretResourceName)
+	err = iof.Observed.GetFromObject(ctx, s, connectionSecretResourceName)
 	if err != nil {
 		return runtime.NewFatalErr(ctx, "Cannot get connection secret object", err)
 	}

@@ -18,9 +18,40 @@ type DesiredResources struct {
 	composite xfnv1alpha1.DesiredComposite
 }
 
-// GetFromKubeObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
+// List returns the list of managed resources from desired object
+func (d *DesiredResources) List(_ context.Context) []Resource {
+	return d.resources
+}
+
+// Get unmarshalls the resource from the desired array.
+// This will return any changes that a previous function has made to the desired array.
+func (d *DesiredResources) Get(ctx context.Context, obj client.Object, resName string) error {
+	return getFrom(ctx, &d.resources, obj, resName)
+}
+
+// Put adds the object as is to the FunctionIO desired array.
+// It assumes that the given object is adheres to Crossplane's ManagedResource model.
+func (d *DesiredResources) Put(ctx context.Context, obj client.Object) error {
+	return d.put(ctx, obj, obj.GetName())
+}
+
+// Remove removes a resource by name from the managed resources
+// expect an error if resource not found
+func (d *DesiredResources) Remove(ctx context.Context, name string) error {
+	log := controllerruntime.LoggerFrom(ctx)
+	for i, r := range d.resources {
+		if r.GetName() == name {
+			log.V(1).Info("Removing resource from desired resources", "resource name", name)
+			d.resources = append(d.resources[:i], d.resources[i+1:]...)
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+// GetFromObject gets the k8s resource o from a provider kubernetes object kon (Kube Object Name)
 // from the desired array of the FunctionIO.
-func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
+func (d *DesiredResources) GetFromObject(ctx context.Context, o client.Object, kon string) error {
 	ko, err := getKubeObjectFrom(ctx, &d.resources, kon)
 	if err != nil {
 		return fmt.Errorf("cannot get resource from desired kube object: %v", err)
@@ -28,8 +59,8 @@ func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Objec
 	return d.fromKubeObject(ctx, ko, o)
 }
 
-// PutIntoKubeObject adds or updates the desired resource into its kube object
-func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
+// PutIntoObject adds or updates the desired resource into its kube object
+func (d *DesiredResources) PutIntoObject(ctx context.Context, o client.Object, kon string, refs ...xkube.Reference) error {
 	log := controllerruntime.LoggerFrom(ctx)
 
 	ko := &xkube.Object{
@@ -56,52 +87,6 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 	}
 
 	return d.put(ctx, ko, kon)
-}
-
-// GetManagedResource unmarshalls the resource from the desired array.
-// This will return any changes that a previous function has made to the desired array.
-func (d *DesiredResources) GetManagedResource(ctx context.Context, obj client.Object, resName string) error {
-	return getFrom(ctx, &d.resources, obj, resName)
-}
-
-// PutManagedResource adds the object as is to the FunctionIO desired array.
-// It assumes that the given object is adheres to Crossplane's ManagedResource model.
-func (d *DesiredResources) PutManagedResource(ctx context.Context, obj client.Object) error {
-	return d.put(ctx, obj, obj.GetName())
-}
-
-func (d *DesiredResources) put(ctx context.Context, obj client.Object, resName string) error {
-	log := controllerruntime.LoggerFrom(ctx)
-	log.V(1).Info("Putting object into desired kube object", "object", obj, "kube object name", resName)
-	kind, _, err := s.ObjectKinds(obj)
-	if err != nil {
-		return fmt.Errorf("cannot get object kinds from %s: %v", obj.GetName(), err)
-	}
-
-	obj.GetObjectKind().SetGroupVersionKind(kind[0])
-	rawData, err := json.Marshal(obj)
-	if err != nil {
-		return fmt.Errorf("cannot marshall object %s: %v", obj.GetName(), err)
-	}
-
-	for _, res := range d.resources {
-		if res.GetName() == resName {
-			log.V(1).Info("Updating existing desired kube object with resource", "object", obj, "kube object name", resName)
-			res.SetRaw(rawData)
-			return nil
-		}
-	}
-
-	log.V(1).Info("No desired kube object found, adding new one with resource", "object", obj, "kube object name", resName)
-	d.resources = append(d.resources, desiredResource(
-		xfnv1alpha1.DesiredResource{
-			Name: resName,
-			Resource: runtime.RawExtension{
-				Raw: rawData,
-			},
-		},
-	))
-	return nil
 }
 
 // GetComposite unmarshalls the desired composite from the function io to the given object.
@@ -158,25 +143,6 @@ func (d *DesiredResources) RemoveCompositeConnectionDetail(ctx context.Context, 
 	return ErrNotFound
 }
 
-// ListResources returns the list of managed resources from desired object
-func (d *DesiredResources) ListResources(_ context.Context) []Resource {
-	return d.resources
-}
-
-// RemoveResource removes a resource by name from the managed resources
-// expect an error if resource not found
-func (d *DesiredResources) RemoveResource(ctx context.Context, name string) error {
-	log := controllerruntime.LoggerFrom(ctx)
-	for i, r := range d.resources {
-		if r.GetName() == name {
-			log.V(1).Info("Removing resource from desired resources", "resource name", name)
-			d.resources = append(d.resources[:i], d.resources[i+1:]...)
-			return nil
-		}
-	}
-	return ErrNotFound
-}
-
 // fromKubeObject checks into spec field instead of status. The status may not have the latest updates
 // when there might be multiple transformation functions in the pipeline
 func (d *DesiredResources) fromKubeObject(ctx context.Context, kobj *xkube.Object, obj client.Object) error {
@@ -186,6 +152,40 @@ func (d *DesiredResources) fromKubeObject(ctx context.Context, kobj *xkube.Objec
 		return ErrNotFound
 	}
 	return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
+}
+
+func (d *DesiredResources) put(ctx context.Context, obj client.Object, resName string) error {
+	log := controllerruntime.LoggerFrom(ctx)
+	log.V(1).Info("Putting object into desired kube object", "object", obj, "kube object name", resName)
+	kind, _, err := s.ObjectKinds(obj)
+	if err != nil {
+		return fmt.Errorf("cannot get object kinds from %s: %v", obj.GetName(), err)
+	}
+
+	obj.GetObjectKind().SetGroupVersionKind(kind[0])
+	rawData, err := json.Marshal(obj)
+	if err != nil {
+		return fmt.Errorf("cannot marshall object %s: %v", obj.GetName(), err)
+	}
+
+	for _, res := range d.resources {
+		if res.GetName() == resName {
+			log.V(1).Info("Updating existing desired kube object with resource", "object", obj, "kube object name", resName)
+			res.SetRaw(rawData)
+			return nil
+		}
+	}
+
+	log.V(1).Info("No desired kube object found, adding new one with resource", "object", obj, "kube object name", resName)
+	d.resources = append(d.resources, desiredResource(
+		xfnv1alpha1.DesiredResource{
+			Name: resName,
+			Resource: runtime.RawExtension{
+				Raw: rawData,
+			},
+		},
+	))
+	return nil
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource

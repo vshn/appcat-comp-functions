@@ -100,7 +100,7 @@ func deployAlertmanagerFromRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL,
 		ToFieldPath: pointer.String("spec"),
 	}
 
-	return iof.Desired.PutIntoKubeObject(ctx, ac, comp.Name+"-alertmanagerconfig", xRef)
+	return iof.Desired.PutIntoObject(ctx, ac, comp.Name+"-alertmanagerconfig", xRef)
 }
 
 func deployAlertmanagerFromTemplate(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
@@ -112,7 +112,7 @@ func deployAlertmanagerFromTemplate(ctx context.Context, comp *vshnv1.VSHNPostgr
 		Spec: *comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate,
 	}
 
-	return iof.Desired.PutIntoKubeObject(ctx, ac, comp.Name+"-alertmanagerconfig")
+	return iof.Desired.PutIntoObject(ctx, ac, comp.Name+"-alertmanagerconfig")
 }
 
 func deploySecretRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
@@ -135,5 +135,5 @@ func deploySecretRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runt
 		ToFieldPath: pointer.String("data"),
 	}
 
-	return iof.Desired.PutIntoKubeObject(ctx, s, comp.Name+"-alertmanagerconfigsecret", xRef)
+	return iof.Desired.PutIntoObject(ctx, s, comp.Name+"-alertmanagerconfigsecret", xRef)
 }

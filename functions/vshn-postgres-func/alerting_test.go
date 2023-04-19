@@ -72,7 +72,7 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
-		assert.NoError(t, iof.Desired.GetManagedResource(ctx, kubeObject, resName))
+		assert.NoError(t, iof.Desired.Get(ctx, kubeObject, resName))
 
 		comp := &vshnv1.VSHNPostgreSQL{}
 		assert.NoError(t, iof.Observed.GetComposite(ctx, comp))
@@ -80,12 +80,12 @@ func TestGivenConfigRefAndSecretThenExpectOutput(t *testing.T) {
 		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef, kubeObject.Spec.References[0].PatchesFrom.Name)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
+		assert.NoError(t, iof.Desired.GetFromObject(ctx, alertConfig, resName))
 		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, secret, secretName))
+		assert.NoError(t, iof.Desired.GetFromObject(ctx, secret, secretName))
 
 		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
@@ -103,20 +103,20 @@ func TestGivenConfigTemplateAndSecretThenExpectOutput(t *testing.T) {
 
 		resName := "psql-alertmanagerconfig"
 		kubeObject := &xkube.Object{}
-		assert.NoError(t, iof.Desired.GetManagedResource(ctx, kubeObject, resName))
+		assert.NoError(t, iof.Desired.Get(ctx, kubeObject, resName))
 
 		assert.Empty(t, kubeObject.Spec.References)
 
 		alertConfig := &alertmanagerv1alpha1.AlertmanagerConfig{}
 		comp := &vshnv1.VSHNPostgreSQL{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, alertConfig, resName))
+		assert.NoError(t, iof.Desired.GetFromObject(ctx, alertConfig, resName))
 		assert.NoError(t, iof.Observed.GetComposite(ctx, comp))
 		assert.Equal(t, comp.Status.InstanceNamespace, alertConfig.GetNamespace())
 		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate, &alertConfig.Spec)
 
 		secretName := "psql-alertmanagerconfigsecret"
 		secret := &v1.Secret{}
-		assert.NoError(t, iof.Desired.GetFromKubeObject(ctx, secret, secretName))
+		assert.NoError(t, iof.Desired.GetFromObject(ctx, secret, secretName))
 
 		assert.Equal(t, comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef, secret.GetName())
 	})
