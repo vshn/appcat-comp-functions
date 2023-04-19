@@ -15,9 +15,8 @@ func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Tran
 
 	log.V(1).Info("Executing transformation function")
 	res := transform.TransformFunc(ctx, runtime).Resolve()
-	if res.Severity == xfnv1alpha1.SeverityNormal {
-		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
-	}
+	res.Message = fmt.Sprintf("Function %s result: %s", transform.Name, res.Message)
+
 	runtime.io.Results = append(runtime.io.Results, res)
 
 	runtime.io.Desired.Composite.Resource.Raw = runtime.Desired.composite.Resource.Raw
