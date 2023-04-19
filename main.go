@@ -29,9 +29,9 @@ var postgresFunctions = []runtime.Transform{
 
 var (
 	Network = "unix"
-	//Address = "@crossplane/fn/default.sock"
+	Address = "@crossplane/fn/default.sock"
 	// for testing purposes, especially on MacOS it's much easier to create local socket than whole directory structure and permissions
-	Address = "default.sock"
+	//Address = "default.sock"
 )
 
 type server struct {

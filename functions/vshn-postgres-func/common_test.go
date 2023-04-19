@@ -2,7 +2,6 @@ package vshnpostgres
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,7 +19,7 @@ func loadRuntimeFromFile(t assert.TestingT, file string) *runtime.Runtime {
 	before, _, _ := strings.Cut(p, "/functions")
 	f, err := os.Open(before + "/test/transforms/vshn-postgres/" + file)
 	assert.NoError(t, err)
-	b1, err := ioutil.ReadAll(f)
+	b1, err := os.ReadFile(f.Name())
 	if err != nil {
 		assert.FailNow(t, "can't get example")
 	}

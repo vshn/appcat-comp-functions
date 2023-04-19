@@ -9,8 +9,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
@@ -26,7 +26,7 @@ var (
 func main() {
 	// reuse the same output as we use in tests
 	// You must run this file from it's directory or adjust file path
-	b1, err := ioutil.ReadFile("../test/example.yaml")
+	b1, err := os.ReadFile("../test/example.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
