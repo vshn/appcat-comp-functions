@@ -70,12 +70,7 @@ func AddUserAlerting(ctx context.Context, iof *runtime.Runtime) runtime.Result {
 			return runtime.NewFatalErr(ctx, "Cannot deploy secret ref", err)
 		}
 	}
-	/*
-		err = iof.Desired.SetComposite(ctx, comp)
-		if err != nil {
-			return runtime.NewFatalErr(ctx, "Cannot set desired composite", err)
-		}
-	*/
+
 	return runtime.NewNormal()
 }
 
