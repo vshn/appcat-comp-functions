@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
-	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -73,18 +72,6 @@ func NewRuntime(ctx context.Context) (*Runtime, error) {
 	}
 
 	return &r, nil
-}
-
-func fromKubeObject(ctx context.Context, kobj *xkube.Object, obj client.Object) error {
-	log := controllerruntime.LoggerFrom(ctx)
-	log.V(1).Info("Unmarshalling resource from kube object", "kube object", kobj, reflect.TypeOf(obj).Kind())
-	if kobj.Status.AtProvider.Manifest.Raw == nil {
-		if kobj.Spec.ForProvider.Manifest.Raw == nil {
-			return fmt.Errorf("no resource in kubernetes object")
-		}
-		return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
-	}
-	return json.Unmarshal(kobj.Status.AtProvider.Manifest.Raw, obj)
 }
 
 func getKubeObjectFrom(ctx context.Context, resources *[]Resource, kon string) (*xkube.Object, error) {

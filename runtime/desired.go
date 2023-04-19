@@ -8,6 +8,7 @@ import (
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"reflect"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,9 +23,9 @@ type DesiredResources struct {
 func (d *DesiredResources) GetFromKubeObject(ctx context.Context, o client.Object, kon string) error {
 	ko, err := getKubeObjectFrom(ctx, &d.resources, kon)
 	if err != nil {
-		return fmt.Errorf("cannot get resource from kube object: %v", err)
+		return fmt.Errorf("cannot get resource from desired kube object: %v", err)
 	}
-	return fromKubeObject(ctx, ko, o)
+	return d.fromKubeObject(ctx, ko, o)
 }
 
 // PutIntoKubeObject adds or updates the desired resource into its kube object
@@ -48,7 +49,7 @@ func (d *DesiredResources) PutIntoKubeObject(ctx context.Context, o client.Objec
 		return err
 	}
 
-	log.V(1).Info("Preparing to put object into kube object", "object", o, "kube object name", kon)
+	log.V(1).Info("Preparing to put object into desired kube object", "object", o, "kube object name", kon)
 	err = updateKubeObject(o, ko)
 	if err != nil {
 		return err
@@ -71,7 +72,7 @@ func (d *DesiredResources) PutManagedResource(ctx context.Context, obj client.Ob
 
 func (d *DesiredResources) put(ctx context.Context, obj client.Object, resName string) error {
 	log := controllerruntime.LoggerFrom(ctx)
-	log.V(1).Info("Putting object into kube object", "object", obj, "kube object name", resName)
+	log.V(1).Info("Putting object into desired kube object", "object", obj, "kube object name", resName)
 	kind, _, err := s.ObjectKinds(obj)
 	if err != nil {
 		return fmt.Errorf("cannot get object kinds from %s: %v", obj.GetName(), err)
@@ -85,13 +86,13 @@ func (d *DesiredResources) put(ctx context.Context, obj client.Object, resName s
 
 	for _, res := range d.resources {
 		if res.GetName() == resName {
-			log.V(1).Info("Updating existing kube object with resource", "object", obj, "kube object name", resName)
+			log.V(1).Info("Updating existing desired kube object with resource", "object", obj, "kube object name", resName)
 			res.SetRaw(rawData)
 			return nil
 		}
 	}
 
-	log.V(1).Info("No kube object found, adding new one with resource", "object", obj, "kube object name", resName)
+	log.V(1).Info("No desired kube object found, adding new one with resource", "object", obj, "kube object name", resName)
 	d.resources = append(d.resources, desiredResource(
 		xfnv1alpha1.DesiredResource{
 			Name: resName,
@@ -174,6 +175,17 @@ func (d *DesiredResources) RemoveResource(ctx context.Context, name string) erro
 		}
 	}
 	return ErrNotFound
+}
+
+// fromKubeObject checks into spec field instead of status. The status may not have the latest updates
+// when there might be multiple transformation functions in the pipeline
+func (d *DesiredResources) fromKubeObject(ctx context.Context, kobj *xkube.Object, obj client.Object) error {
+	log := controllerruntime.LoggerFrom(ctx)
+	log.V(1).Info("Unmarshalling resource from desired kube object", "kube object", kobj, reflect.TypeOf(obj).Kind())
+	if kobj.Spec.ForProvider.Manifest.Raw == nil {
+		return ErrNotFound
+	}
+	return json.Unmarshal(kobj.Spec.ForProvider.Manifest.Raw, obj)
 }
 
 // desiredResource is a wrapper around xfnv1alpha1.DesiredResource
