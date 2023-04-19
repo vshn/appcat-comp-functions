@@ -2,10 +2,9 @@ package vshnpostgres
 
 import (
 	"context"
-	"fmt"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
-	"github.com/go-logr/logr"
 	alertmanagerv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
@@ -15,15 +14,20 @@ import (
 )
 
 // AddUserAlerting adds user alerting to the PostgreSQL instance.
-func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
-
+func AddUserAlerting(ctx context.Context, iof *runtime.Runtime) runtime.Result {
+	log := controllerruntime.LoggerFrom(ctx)
 	log.Info("Check if alerting references are set")
 
-	log.V(1).Info("Tranfsorming", "obj", iof)
+	log.V(1).Info("Transforming", "obj", iof)
 
 	err := runtime.AddToScheme(alertmanagerv1alpha1.SchemeBuilder)
 	if err != nil {
-		return comp, err
+		return runtime.NewFatalErr(ctx, "Cannot add scheme builder to scheme", err)
+	}
+	comp := &vshnv1.VSHNPostgreSQL{}
+	err = iof.Observed.GetComposite(ctx, comp)
+	if err != nil {
+		return runtime.NewFatalErr(ctx, "Cannot get composite from function io", err)
 	}
 
 	monitoringSpec := comp.Spec.Parameters.Monitoring
@@ -31,32 +35,29 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime,
 	if monitoringSpec.AlertmanagerConfigRef != "" {
 
 		if monitoringSpec.AlertmanagerConfigSecretRef == "" {
-			log.Info("Found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef")
-			return comp, fmt.Errorf("found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well")
+			return runtime.NewFatal(ctx, "Found AlertmanagerConfigRef but no AlertmanagerConfigSecretRef, please specify as well")
 		}
 
 		refName := comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef
 		log.Info("Found an AlertmanagerConfigRef, deploying...", "refName", refName)
 
-		err := deployAlertmanagerFromRef(comp, iof)
+		err = deployAlertmanagerFromRef(ctx, comp, iof)
 		if err != nil {
-			return comp, err
+			return runtime.NewFatalErr(ctx, "Could not deploy alertmanager from ref", err)
 		}
-
 	}
 
 	if monitoringSpec.AlertmanagerConfigSpecTemplate != nil {
 
 		if monitoringSpec.AlertmanagerConfigSecretRef == "" {
-			log.Info("Found AlertmanagerConfigTemplate but no AlertmanagerConfigSecretRef")
-			return comp, fmt.Errorf("found AlertmanagerConfigTemplate but no AlertmanagerConfigSecretRef, please specify as well")
+			return runtime.NewFatal(ctx, "Found AlertmanagerConfigTemplate but no AlertmanagerConfigSecretRef, please specify as well")
 		}
 
 		log.Info("Found an AlertmanagerConfigTemplate, deploying...")
 
-		err := deployAlertmanagerFromTemplate(comp, iof)
+		err = deployAlertmanagerFromTemplate(ctx, comp, iof)
 		if err != nil {
-			return comp, err
+			return runtime.NewFatalErr(ctx, "Cannot deploy alertmanager from template", err)
 		}
 	}
 
@@ -64,16 +65,21 @@ func AddUserAlerting(ctx context.Context, log logr.Logger, iof *runtime.Runtime,
 		refName := comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef
 		log.Info("Found an AlertmanagerConfigSecretRef, deploying...", "refName", refName)
 
-		err := deploySecretRef(comp, iof)
+		err = deploySecretRef(ctx, comp, iof)
 		if err != nil {
-			return comp, err
+			return runtime.NewFatalErr(ctx, "Cannot deploy secret ref", err)
 		}
 	}
-
-	return comp, nil
+	/*
+		err = iof.Desired.SetComposite(ctx, comp)
+		if err != nil {
+			return runtime.NewFatalErr(ctx, "Cannot set desired composite", err)
+		}
+	*/
+	return runtime.NewNormal()
 }
 
-func deployAlertmanagerFromRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
+func deployAlertmanagerFromRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	ac := &alertmanagerv1alpha1.AlertmanagerConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "postgresql-alertmanagerconfig",
@@ -81,34 +87,23 @@ func deployAlertmanagerFromRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime
 		},
 	}
 
-	xkobj, err := runtime.AddObjectToXKube(comp.Name+"-alertmanagerconfig", ac)
-	if err != nil {
-		return err
-	}
-
-	xkobj.Spec.References = []xkube.Reference{
-		{
-			PatchesFrom: &xkube.PatchesFrom{
-				DependsOn: xkube.DependsOn{
-					APIVersion: "monitoring.coreos.com/v1alpha1",
-					Kind:       "AlertmanagerConfig",
-					Namespace:  comp.ObjectMeta.Labels["crossplane.io/claim-namespace"],
-					Name:       comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef,
-				},
-				FieldPath: pointer.String("spec"),
+	xRef := xkube.Reference{
+		PatchesFrom: &xkube.PatchesFrom{
+			DependsOn: xkube.DependsOn{
+				APIVersion: "monitoring.coreos.com/v1alpha1",
+				Kind:       "AlertmanagerConfig",
+				Namespace:  comp.ObjectMeta.Labels["crossplane.io/claim-namespace"],
+				Name:       comp.Spec.Parameters.Monitoring.AlertmanagerConfigRef,
 			},
-			ToFieldPath: pointer.String("spec"),
+			FieldPath: pointer.String("spec"),
 		},
+		ToFieldPath: pointer.String("spec"),
 	}
 
-	err = iof.PutManagedRessource(xkobj)
-	if err != nil {
-		return err
-	}
-	return nil
+	return iof.Desired.PutIntoObject(ctx, ac, comp.Name+"-alertmanagerconfig", xRef)
 }
 
-func deployAlertmanagerFromTemplate(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
+func deployAlertmanagerFromTemplate(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
 	ac := &alertmanagerv1alpha1.AlertmanagerConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
@@ -117,41 +112,28 @@ func deployAlertmanagerFromTemplate(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Ru
 		Spec: *comp.Spec.Parameters.Monitoring.AlertmanagerConfigSpecTemplate,
 	}
 
-	xkobj, err := runtime.AddObjectToXKube(comp.Name+"-alertmanagerconfig", ac)
-	if err != nil {
-		return err
-	}
-
-	return iof.PutManagedRessource(xkobj)
+	return iof.Desired.PutIntoObject(ctx, ac, comp.Name+"-alertmanagerconfig")
 }
 
-func deploySecretRef(comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
-	secret := &v1.Secret{
+func deploySecretRef(ctx context.Context, comp *vshnv1.VSHNPostgreSQL, iof *runtime.Runtime) error {
+	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
 			Namespace: comp.Status.InstanceNamespace,
 		},
 	}
-	xkobj, err := runtime.AddObjectToXKube(comp.Name+"-alertmanagerconfigsecret", secret)
-	if err != nil {
-		return err
-	}
-
-	xkobj.ObjectMeta.Name = comp.Name + "-alertmanagerconfigsecret"
-	xkobj.Spec.References = []xkube.Reference{
-		{
-			PatchesFrom: &xkube.PatchesFrom{
-				DependsOn: xkube.DependsOn{
-					APIVersion: "v1",
-					Kind:       "Secret",
-					Namespace:  comp.ObjectMeta.Labels["crossplane.io/claim-namespace"],
-					Name:       comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
-				},
-				FieldPath: pointer.String("data"),
+	xRef := xkube.Reference{
+		PatchesFrom: &xkube.PatchesFrom{
+			DependsOn: xkube.DependsOn{
+				APIVersion: "v1",
+				Kind:       "Secret",
+				Namespace:  comp.ObjectMeta.Labels["crossplane.io/claim-namespace"],
+				Name:       comp.Spec.Parameters.Monitoring.AlertmanagerConfigSecretRef,
 			},
-			ToFieldPath: pointer.String("data"),
+			FieldPath: pointer.String("data"),
 		},
+		ToFieldPath: pointer.String("data"),
 	}
 
-	return iof.PutManagedRessource(xkobj)
+	return iof.Desired.PutIntoObject(ctx, s, comp.Name+"-alertmanagerconfigsecret", xRef)
 }

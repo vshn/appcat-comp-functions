@@ -2,49 +2,38 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/urfave/cli/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
 // Exec reads FunctionIO from stdin and return the desired state via transform function
-func Exec[T any, O interface {
-	client.Object
-	*T
-}](ctx context.Context, log logr.Logger, iof *Runtime, transform func(c context.Context, log logr.Logger, io *Runtime, obj O) (O, error)) error {
-
-	log.V(1).Info("Unmarshalling composite from FunctionIO")
-	var t T
-	obj := &t
-	err := json.Unmarshal(iof.Observed.Composite.Resource.Raw, obj)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal composite: %w", err)
-	}
+func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Transform) error {
 
 	log.V(1).Info("Executing transformation function")
-	res, err := transform(ctx, log, iof, obj)
-	if err != nil {
-		iof.AddResult(xfnv1alpha1.SeverityWarning, err.Error())
+	res := transform.TransformFunc(ctx, runtime).Resolve()
+	if res.Severity == xfnv1alpha1.SeverityNormal {
+		res.Message = fmt.Sprintf("Function %s ran successfully", transform.Name)
 	}
+	runtime.io.Results = append(runtime.io.Results, res)
 
-	log.V(1).Info("Marshalling composite")
-	raw, err := json.Marshal(res)
-	if err != nil {
-		return fmt.Errorf("failed to marshal composite: %w", err)
+	runtime.io.Desired.Composite.Resource.Raw = runtime.Desired.composite.Resource.Raw
+	runtime.io.Desired.Composite.ConnectionDetails = runtime.Desired.composite.ConnectionDetails
+
+	runtime.io.Desired.Resources = make([]xfnv1alpha1.DesiredResource, len(runtime.Desired.resources))
+	for i, r := range runtime.Desired.resources {
+		runtime.io.Desired.Resources[i] = xfnv1alpha1.DesiredResource(r.(desiredResource))
 	}
-	iof.Desired.Composite.Resource.Raw = raw
 
 	return nil
 }
 
 // printFunctionIO prints the whole FunctionIO to stdout, so Crossplane can
 // pick it up again.
-func printFunctionIO(iof *Runtime, log logr.Logger) error {
+func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) error {
 	log.V(1).Info("Marshalling FunctionIO")
 	fnc, err := yaml.Marshal(iof)
 	if err != nil {
@@ -55,50 +44,37 @@ func printFunctionIO(iof *Runtime, log logr.Logger) error {
 	return nil
 }
 
-func RunCommand[T any, O interface {
-	client.Object
-	*T
-}](ctx *cli.Context, transforms []Transform[T, O]) error {
+func RunCommand(ctx *cli.Context, transforms []Transform) error {
+	log := logr.FromContextOrDiscard(ctx.Context)
 
-	funcIO, err := setup(ctx)
+	log.V(1).Info("Creating new runtime")
+	funcIO, err := NewRuntime(ctx.Context)
 	if err != nil {
 		return err
 	}
-
-	log := logr.FromContextOrDiscard(ctx.Context)
 
 	if ctx.String("function") != "" {
 		for _, function := range transforms {
 			if function.Name == ctx.String("function") {
 				log.Info("Starting single function", "name", function.Name)
-				err := Exec(ctx.Context, log, funcIO, function.TransformFunc)
+				err = Exec(ctx.Context, log, funcIO, function)
 				if err != nil {
 					return err
 				}
 			}
 		}
-		return printFunctionIO(funcIO, log)
+		return printFunctionIO(&funcIO.io, log)
 	}
 
 	for _, function := range transforms {
 		log.Info("Starting function", "name", function.Name)
-		err := Exec(ctx.Context, log, funcIO, function.TransformFunc)
+		err = Exec(ctx.Context, log, funcIO, function)
 		if err != nil {
 			return err
 		}
 	}
 
-	return printFunctionIO(funcIO, log)
-}
-
-func setup(ctx *cli.Context) (*Runtime, error) {
-
-	funcIO, err := getFunctionIO(ctx.Context)
-	if err != nil {
-		return nil, err
-	}
-
-	return funcIO, nil
+	return printFunctionIO(&funcIO.io, log)
 }
 
 // NewFunctionFlag returns the "function" cli flag.

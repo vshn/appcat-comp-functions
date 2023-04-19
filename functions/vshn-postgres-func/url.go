@@ -2,10 +2,7 @@ package vshnpostgres
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
-	"github.com/go-logr/logr"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	v1 "k8s.io/api/core/v1"
@@ -33,37 +30,43 @@ var (
 // it cannot be matched to the metadata.name
 var connectionSecretResourceName = "connection"
 
-// Transform changes the desired state of a FunctionIO
-func Transform(ctx context.Context, log logr.Logger, iof *runtime.Runtime, comp *vshnv1.VSHNPostgreSQL) (*vshnv1.VSHNPostgreSQL, error) {
+// AddUrlToConnectionDetails changes the desired state of a FunctionIO
+func AddUrlToConnectionDetails(ctx context.Context, iof *runtime.Runtime) runtime.Result {
+	log := controllerruntime.LoggerFrom(ctx)
+
+	comp := &vshnv1.VSHNPostgreSQL{}
+	err := iof.Desired.GetComposite(ctx, comp)
+	if err != nil {
+		return runtime.NewFatalErr(ctx, "Cannot get composite from function io", err)
+	}
+
 	// Wait for the next reconciliation in case instance namespace is missing
 	if comp.Status.InstanceNamespace == "" {
-		log.Info("Composite is missing instance namespace, skipping transformation")
-		return comp, nil
+		return runtime.NewWarning(ctx, "Composite is missing instance namespace, skipping transformation")
 	}
 
 	log.Info("Getting connection secret from managed kubernetes object")
 	s := &v1.Secret{}
 
-	err := iof.GetFromObservedKubeObject(ctx, s, connectionSecretResourceName)
+	err = iof.Observed.GetFromObject(ctx, s, connectionSecretResourceName)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get connection secret object: %w", err)
+		return runtime.NewFatalErr(ctx, "Cannot get connection secret object", err)
 	}
 
 	log.Info("Setting POSTRESQL_URL env variable into connection secret")
-	val := getPostgresURL(ctx, s)
+	val := getPostgresURL(s)
+	if val == "" {
+		return runtime.NewWarning(ctx, "User, pass, host, port or db value is missing from connection secret, skipping transformation")
+	}
+	iof.Desired.PutCompositeConnectionDetail(ctx, v1alpha1.ExplicitConnectionDetail{
+		Name:  PostgresqlUrl,
+		Value: val,
+	})
 
-	iof.Desired.Composite.ConnectionDetails =
-		append(iof.Desired.Composite.ConnectionDetails, v1alpha1.ExplicitConnectionDetail{
-			Name:  PostgresqlUrl,
-			Value: val,
-		})
-
-	return comp, nil
+	return runtime.NewNormal()
 }
 
-func getPostgresURL(ctx context.Context, s *v1.Secret) string {
-	log := controllerruntime.LoggerFrom(ctx)
-
+func getPostgresURL(s *v1.Secret) string {
 	user := string(s.Data[PostgresqlUser])
 	pwd := string(s.Data[PostgresqlPassword])
 	host := string(s.Data[PostgresqlHost])
@@ -72,7 +75,6 @@ func getPostgresURL(ctx context.Context, s *v1.Secret) string {
 
 	// The values are still missing, wait for the next reconciliation
 	if user == "" || pwd == "" || host == "" || port == "" || db == "" {
-		log.Info("User, pass, host, port or db value is missing from connection secret, skipping transformation")
 		return ""
 	}
 
