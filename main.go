@@ -17,6 +17,10 @@ var postgresFunctions = []runtime.Transform{
 		Name:          "user-alerting",
 		TransformFunc: vp.AddUserAlerting,
 	},
+	{
+		Name:          "random-default-schedule",
+		TransformFunc: vp.TransformSchedule,
+	},
 }
 
 func main() {
