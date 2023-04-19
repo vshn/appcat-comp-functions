@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"os"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -47,18 +46,12 @@ func init() {
 var ErrNotFound = errors.New("not found")
 
 // NewRuntime creates a new Runtime object.
-func NewRuntime(ctx context.Context) (*Runtime, error) {
+func NewRuntime(ctx context.Context, input []byte) (*Runtime, error) {
 	log := controllerruntime.LoggerFrom(ctx)
-
-	log.V(1).Info("Reading from stdin")
-	x, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read from stdin: %w", err)
-	}
 
 	log.V(1).Info("Unmarshalling FunctionIO from stdin")
 	r := Runtime{}
-	err = yaml.Unmarshal(x, &r.io)
+	err := yaml.Unmarshal(input, &r.io)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal function io: %w", err)
 	}

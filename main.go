@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/urfave/cli/v2"
+	"log"
+	"net"
+
+	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
-	"os"
+	"google.golang.org/grpc"
 )
 
 var postgresFunctions = []runtime.Transform{
@@ -23,38 +27,46 @@ var postgresFunctions = []runtime.Transform{
 	},
 }
 
+var (
+	Network = "unix"
+	//Address = "@crossplane/fn/default.sock"
+	// for testing purposes, especially on MacOS it's much easier to create local socket than whole directory structure and permissions
+	Address = "default.sock"
+)
+
+type server struct {
+	pb.UnimplementedContainerizedFunctionRunnerServiceServer
+}
+
+func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*pb.RunFunctionResponse, error) {
+	switch in.Image {
+	case "postgresql":
+		fnio, err := runtime.RunCommand(&ctx, in.Input, postgresFunctions)
+		return &pb.RunFunctionResponse{
+			Output: fnio,
+		}, err
+	case "redis":
+		return &pb.RunFunctionResponse{
+			// return what was sent as it's currently not supported
+			Output: in.Input,
+		}, nil
+	default:
+		return &pb.RunFunctionResponse{
+			Output: []byte("Bad configuration"),
+		}, fmt.Errorf("unrecogised configuration")
+	}
+}
+
 func main() {
-	app := newApp()
-	err := app.Run(os.Args)
-	// If required flags aren't set, it will return with error before we could set up logging
+	lis, err := net.Listen(Network, Address)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		log.Fatalf("failed to listen: %v", err)
 	}
-}
-
-func newApp() *cli.App {
-	app := &cli.App{
-		Name:    vp.AI.AppName,
-		Usage:   vp.AI.AppLongName,
-		Version: fmt.Sprintf("%s, revision=%s, date=%s", vp.AI.Version, vp.AI.Commit, vp.AI.Date),
-		Action:  run,
-		Flags: []cli.Flag{
-			runtime.NewLogLevelFlag(),
-			runtime.NewLogFormatFlag(),
-			runtime.NewFunctionFlag(),
-		},
-	}
-	return app
-}
-
-func run(ctx *cli.Context) error {
-	err := runtime.SetupLogging(vp.AI, ctx)
-	if err != nil {
-		return err
+	s := grpc.NewServer()
+	pb.RegisterContainerizedFunctionRunnerServiceServer(s, &server{})
+	log.Printf("server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 
-	_ = runtime.LogMetadata(ctx, vp.AI)
-
-	return runtime.RunCommand(ctx, postgresFunctions)
 }
