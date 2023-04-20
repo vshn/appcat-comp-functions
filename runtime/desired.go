@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	xkube "github.com/crossplane-contrib/provider-kubernetes/apis/object/v1alpha1"
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,6 +13,9 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// the default provider kubernetes name
+var providerConfigRefName = "kubernetes"
 
 type DesiredResources struct {
 	resources []Resource
@@ -72,6 +76,11 @@ func (d *DesiredResources) PutIntoObject(ctx context.Context, o client.Object, k
 			Name: kon,
 		},
 		Spec: xkube.ObjectSpec{
+			ResourceSpec: v1.ResourceSpec{
+				ProviderConfigReference: &v1.Reference{
+					Name: providerConfigRefName,
+				},
+			},
 			References: refs,
 		},
 	}
