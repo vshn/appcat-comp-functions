@@ -1,12 +1,30 @@
 package main
 
 import (
-	"fmt"
-	"github.com/urfave/cli/v2"
+	"context"
+	"flag"
+	"log"
+	"net"
+	"os"
+	rt "runtime"
+	"time"
+
+	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	"github.com/go-logr/logr"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
-	"os"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+var AI = runtime.AppInfo{
+	Version:     "unknown",
+	Commit:      "-dirty-",
+	Date:        time.Now().Format("2006-01-02"),
+	AppName:     "functionio-vshn",
+	AppLongName: "A crossplane composition function gRPC server",
+}
 
 var postgresFunctions = []runtime.Transform{
 	{
@@ -23,38 +41,86 @@ var postgresFunctions = []runtime.Transform{
 	},
 }
 
+var (
+	Network     = "unix"
+	AddressFlag = "@crossplane/fn/default.sock"
+	LogLevel    = 1
+)
+
+type server struct {
+	pb.UnimplementedContainerizedFunctionRunnerServiceServer
+	logger logr.Logger
+}
+
+func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*pb.RunFunctionResponse, error) {
+	ctx = logr.NewContext(ctx, s.logger)
+	switch in.Image {
+	case "postgresql":
+		fnio, err := runtime.RunCommand(ctx, in.Input, postgresFunctions)
+		if err != nil {
+			return &pb.RunFunctionResponse{
+				Output: fnio,
+			}, status.Errorf(codes.Aborted, "Can't process request for PostgreSQL")
+		}
+		return &pb.RunFunctionResponse{
+			Output: fnio,
+		}, nil
+	case "redis":
+		return &pb.RunFunctionResponse{
+			// return what was sent as it's currently not supported
+			Output: in.Input,
+		}, status.Error(codes.Unimplemented, "Redis is not yet implemented")
+	default:
+		return &pb.RunFunctionResponse{
+			Output: []byte("Bad configuration"),
+		}, status.Error(codes.NotFound, "Unknown request")
+	}
+}
+
 func main() {
-	app := newApp()
-	err := app.Run(os.Args)
-	// If required flags aren't set, it will return with error before we could set up logging
+	flag.StringVar(&AddressFlag, "socket", "@crossplane/fn/default.sock", "optional -> set where socket should be located")
+	flag.IntVar(&LogLevel, "loglevel", 1, "optional -> set log level [0,1]")
+	flag.Parse()
+	logger, err := runtime.NewZapLogger(AI.AppName, AI.Version, LogLevel, true)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		log.Fatal("logging broke, exiting")
+	}
+	logger.WithValues(
+		"version", AI.Version,
+		"date", AI.Date,
+		"go_os", rt.GOOS,
+		"go_arch", rt.GOARCH,
+		"go_version", rt.Version(),
+		"uid", os.Getuid(),
+		"gid", os.Getgid(),
+	).Info("Starting up " + AI.AppName)
+	if err := cleanStart(AddressFlag); err != nil {
+		log.Fatal(err)
+	}
+
+	lis, err := net.Listen(Network, AddressFlag)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+
+	pb.RegisterContainerizedFunctionRunnerServiceServer(s, &server{logger: logger})
+	log.Printf("server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
 
-func newApp() *cli.App {
-	app := &cli.App{
-		Name:    vp.AI.AppName,
-		Usage:   vp.AI.AppLongName,
-		Version: fmt.Sprintf("%s, revision=%s, date=%s", vp.AI.Version, vp.AI.Commit, vp.AI.Date),
-		Action:  run,
-		Flags: []cli.Flag{
-			runtime.NewLogLevelFlag(),
-			runtime.NewLogFormatFlag(),
-			runtime.NewFunctionFlag(),
-		},
+// socket isn't removed after server stop listening and blocks another starts
+func cleanStart(socketName string) error {
+	if _, err := os.Stat(socketName); err != nil {
+		return err
 	}
-	return app
-}
-
-func run(ctx *cli.Context) error {
-	err := runtime.SetupLogging(vp.AI, ctx)
+	err := os.RemoveAll(socketName)
 	if err != nil {
 		return err
 	}
 
-	_ = runtime.LogMetadata(ctx, vp.AI)
-
-	return runtime.RunCommand(ctx, postgresFunctions)
+	return nil
 }

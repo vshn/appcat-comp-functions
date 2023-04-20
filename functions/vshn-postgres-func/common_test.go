@@ -2,13 +2,14 @@ package vshnpostgres
 
 import (
 	"context"
-	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
-	"github.com/vshn/appcat-comp-functions/runtime"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"unsafe"
+
+	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
+	"github.com/vshn/appcat-comp-functions/runtime"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -18,8 +19,11 @@ func loadRuntimeFromFile(t assert.TestingT, file string) *runtime.Runtime {
 	before, _, _ := strings.Cut(p, "/functions")
 	f, err := os.Open(before + "/test/transforms/vshn-postgres/" + file)
 	assert.NoError(t, err)
-	os.Stdin = f
-	funcIO, err := runtime.NewRuntime(context.Background())
+	b1, err := os.ReadFile(f.Name())
+	if err != nil {
+		assert.FailNow(t, "can't get example")
+	}
+	funcIO, err := runtime.NewRuntime(context.Background(), b1)
 	assert.NoError(t, err)
 
 	return funcIO

@@ -1,10 +1,10 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -20,8 +20,8 @@ func init() {
 
 // LogMetadata prints various metadata to the root logger.
 // It prints version, architecture and current user ID and returns nil.
-func LogMetadata(c *cli.Context, a AppInfo) error {
-	log := logr.FromContextOrDiscard(c.Context)
+func LogMetadata(c context.Context, a AppInfo) error {
+	log := logr.FromContextOrDiscard(c)
 	log.WithValues(
 		"version", a.Version,
 		"date", a.Date,
@@ -34,17 +34,7 @@ func LogMetadata(c *cli.Context, a AppInfo) error {
 	return nil
 }
 
-func SetupLogging(a AppInfo, c *cli.Context) error {
-	log, err := newZapLogger(a.AppName, a.Version, c.Int(NewLogLevelFlag().Name), usesProductionLoggingConfig(c))
-	c.Context = logr.NewContext(c.Context, log)
-	return err
-}
-
-func usesProductionLoggingConfig(c *cli.Context) bool {
-	return strings.EqualFold("JSON", c.String(NewLogFormatFlag().Name))
-}
-
-func newZapLogger(name, version string, verbosityLevel int, useProductionConfig bool) (logr.Logger, error) {
+func NewZapLogger(name, version string, verbosityLevel int, useProductionConfig bool) (logr.Logger, error) {
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.ConsoleSeparator = " | "
 	if useProductionConfig {
@@ -64,27 +54,4 @@ func newZapLogger(name, version string, verbosityLevel int, useProductionConfig 
 		return zlog.WithValues("version", version), nil
 	}
 	return zlog, nil
-}
-
-func NewLogLevelFlag() *cli.IntFlag {
-	return &cli.IntFlag{
-		Name: "log-level", Aliases: []string{"v"}, EnvVars: []string{"LOG_LEVEL"},
-		Usage: "number of the log level verbosity",
-		Value: 0,
-	}
-}
-
-func NewLogFormatFlag() *cli.StringFlag {
-	return &cli.StringFlag{
-		Name: "log-format", EnvVars: []string{"LOG_FORMAT"},
-		Usage: "sets the log format (values: [json, console])",
-		Value: "console",
-		Action: func(context *cli.Context, format string) error {
-			if format == "console" || format == "json" {
-				return nil
-			}
-			_ = cli.ShowAppHelp(context)
-			return fmt.Errorf("unknown log format: %s", format)
-		},
-	}
 }

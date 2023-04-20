@@ -6,7 +6,6 @@ import (
 
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/urfave/cli/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -32,55 +31,31 @@ func Exec(ctx context.Context, log logr.Logger, runtime *Runtime, transform Tran
 
 // printFunctionIO prints the whole FunctionIO to stdout, so Crossplane can
 // pick it up again.
-func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) error {
+func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) ([]byte, error) {
 	log.V(1).Info("Marshalling FunctionIO")
 	fnc, err := yaml.Marshal(iof)
 	if err != nil {
-		return fmt.Errorf("failed to marshal function io: %w", err)
+		return []byte{}, fmt.Errorf("failed to marshal function io: %w", err)
 	}
-
-	fmt.Println(string(fnc))
-	return nil
+	return fnc, nil
 }
 
-func RunCommand(ctx *cli.Context, transforms []Transform) error {
-	log := logr.FromContextOrDiscard(ctx.Context)
+func RunCommand(ctx context.Context, input []byte, transforms []Transform) ([]byte, error) {
+	log := logr.FromContextOrDiscard(ctx)
 
 	log.V(1).Info("Creating new runtime")
-	funcIO, err := NewRuntime(ctx.Context)
+	funcIO, err := NewRuntime(ctx, input)
 	if err != nil {
-		return err
-	}
-
-	if ctx.String("function") != "" {
-		for _, function := range transforms {
-			if function.Name == ctx.String("function") {
-				log.Info("Starting single function", "name", function.Name)
-				err = Exec(ctx.Context, log, funcIO, function)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		return printFunctionIO(&funcIO.io, log)
+		return []byte{}, err
 	}
 
 	for _, function := range transforms {
 		log.Info("Starting function", "name", function.Name)
-		err = Exec(ctx.Context, log, funcIO, function)
+		err = Exec(ctx, log, funcIO, function)
 		if err != nil {
-			return err
+			return []byte{}, err
 		}
 	}
 
 	return printFunctionIO(&funcIO.io, log)
-}
-
-// NewFunctionFlag returns the "function" cli flag.
-func NewFunctionFlag() *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:     "function",
-		Usage:    "Name of the function to run. If not provided, all functions will run.",
-		Required: false,
-	}
 }

@@ -8,5 +8,4 @@ RUN \
 	tzdata
 
 ENTRYPOINT ["appcat-comp-functions"]
-CMD ["--log-level", "1"]
 COPY appcat-comp-functions /usr/bin/
