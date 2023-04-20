@@ -13,6 +13,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestAddUserAlerting_NoInstanceNamespace(t *testing.T) {
+	ctx := context.Background()
+	expectResult := runtime.NewWarning(ctx, "Composite is missing instance namespace, skipping transformation")
+
+	t.Run("WhenNoInstance_ThenNoErrorAndNoChanges", func(t *testing.T) {
+
+		//Given
+		io := loadRuntimeFromFile(t, "alerting/05-GivenNoStatusInstanceNamespace.yaml")
+
+		// When
+		result := AddUserAlerting(ctx, io)
+
+		// Then
+		assert.Equal(t, expectResult, result)
+	})
+}
+
 func TestAddUserAlerting(t *testing.T) {
 	ctx := context.Background()
 

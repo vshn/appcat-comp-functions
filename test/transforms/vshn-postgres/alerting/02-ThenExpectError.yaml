@@ -32,6 +32,8 @@ observed:
         parameters:
           monitoring:
             alertmanagerConfigRef: test
+      status:
+        instanceNamespace: my-psql
 desired:
   composite:
     connectionDetails: null
@@ -53,4 +55,5 @@ desired:
       spec:
         parameters: null
         writeConnectionSecretToRef: {}
-      status: {}
+      status:
+        instanceNamespace: my-psql

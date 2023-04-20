@@ -30,6 +30,11 @@ func AddUserAlerting(ctx context.Context, iof *runtime.Runtime) runtime.Result {
 		return runtime.NewFatalErr(ctx, "Cannot get composite from function io", err)
 	}
 
+	// Wait for the next reconciliation in case instance namespace is missing
+	if comp.Status.InstanceNamespace == "" {
+		return runtime.NewWarning(ctx, "Composite is missing instance namespace, skipping transformation")
+	}
+
 	monitoringSpec := comp.Spec.Parameters.Monitoring
 
 	if monitoringSpec.AlertmanagerConfigRef != "" {
