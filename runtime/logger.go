@@ -34,13 +34,7 @@ func LogMetadata(c context.Context, a AppInfo) error {
 	return nil
 }
 
-func SetupLogging(a AppInfo, c *context.Context, loglevel int) error {
-	log, err := newZapLogger(a.AppName, a.Version, loglevel, true)
-	*c = logr.NewContext(*c, log)
-	return err
-}
-
-func newZapLogger(name, version string, verbosityLevel int, useProductionConfig bool) (logr.Logger, error) {
+func NewZapLogger(name, version string, verbosityLevel int, useProductionConfig bool) (logr.Logger, error) {
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.ConsoleSeparator = " | "
 	if useProductionConfig {

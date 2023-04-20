@@ -6,14 +6,24 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	"github.com/go-logr/logr"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+var AI = runtime.AppInfo{
+	Version:     "unknown",
+	Commit:      "-dirty-",
+	Date:        time.Now().Format("2006-01-02"),
+	AppName:     "functionio-vshn",
+	AppLongName: "A crossplane composition function gRPC server",
+}
 
 var postgresFunctions = []runtime.Transform{
 	{
@@ -31,19 +41,21 @@ var postgresFunctions = []runtime.Transform{
 }
 
 var (
-	Network  string = "unix"
-	LogLevel int    = 1
+	Network  = "unix"
+	LogLevel = 1
 )
 
 type server struct {
 	pb.UnimplementedContainerizedFunctionRunnerServiceServer
-	ctx context.Context
+	logger logr.Logger
 }
 
 func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*pb.RunFunctionResponse, error) {
+	ctx = logr.NewContext(ctx, s.logger)
+	_ = runtime.LogMetadata(ctx, AI)
 	switch in.Image {
 	case "postgresql":
-		fnio, err := runtime.RunCommand(s.ctx, in.Input, postgresFunctions)
+		fnio, err := runtime.RunCommand(ctx, in.Input, postgresFunctions)
 		if err != nil {
 			return &pb.RunFunctionResponse{
 				Output: fnio,
@@ -65,13 +77,10 @@ func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*p
 }
 
 func main() {
-	cntx := context.Background()
-	err := runtime.SetupLogging(vp.AI, &cntx, LogLevel)
+	logger, err := runtime.NewZapLogger(AI.AppName, AI.Version, LogLevel, true)
 	if err != nil {
 		log.Fatal("logging broke, exiting")
 	}
-	_ = runtime.LogMetadata(cntx, vp.AI)
-
 	var AddressFlag = flag.String("socket", "@crossplane/fn/default.sock", "optional -> set where socket should be located")
 	flag.IntVar(&LogLevel, "loglevel", 1, "optional -> set log level [0,1]")
 	flag.Parse()
@@ -87,7 +96,7 @@ func main() {
 
 	s := grpc.NewServer()
 
-	pb.RegisterContainerizedFunctionRunnerServiceServer(s, &server{ctx: cntx})
+	pb.RegisterContainerizedFunctionRunnerServiceServer(s, &server{logger: logger})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
