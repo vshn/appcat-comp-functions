@@ -51,3 +51,58 @@ This architecture allows us to run all the functions with a single command. But 
 To test a function you can leverage the FunctionIO file in the `./test` folder.
 
 `cat test/function-io.yaml | go run cmd/vshn-postgres-func/main.go --function myfunction > test.yaml`
+
+
+## Usage of gRPC server - local development + kind cluster
+
+entrypoint to start working with gRPC server is to run:
+```
+go run main.go -socket default.sock
+```
+
+it will create a socket file in Your local directory which is easier for development - no need to set permissions and directory structure.
+
+It's also possible to trigger fake request to gRPC server by client (to imitate Crossplane):
+```
+cd test/grpc-client
+go run main.go
+```
+
+if You want to run gRPC server in local kind cluster, please use:
+1. [kindev](https://github.com/vshn/kindev). In makefile replace target:
+   1. ```
+      $(crossplane_sentinel): export KUBECONFIG = $(KIND_KUBECONFIG)
+      $(crossplane_sentinel): kind-setup local-pv-setup
+      # below line loads image to kind
+	  kind load docker-image --name kindev ghcr.io/vshn/appcat-comp-functions
+	  helm repo add crossplane https://charts.crossplane.io/stable
+	  helm upgrade --install crossplane --create-namespace --namespace syn-crossplane crossplane/crossplane \
+	  --set "args[0]='--debug'" \
+	  --set "args[1]='--enable-composition-functions'" \
+	  --set "args[2]='--enable-environment-configs'" \
+	  --set "xfn.enabled=true" \
+	  --set "xfn.args={--debug}" \
+	  --set "xfn.image.repository=ghcr.io/vshn/appcat-comp-functions" \
+	  --set "xfn.image.tag=latest" \
+	  --wait
+	  @touch $@   
+      ```
+2. [component-appcat](https://github.com/vshn/component-appcat) please append [file](https://github.com/vshn/component-appcat/blob/master/tests/golden/vshn/appcat/appcat/21_composition_vshn_postgres.yaml) with:
+   1.   ```
+        compositeTypeRef:
+          apiVersion: vshn.appcat.vshn.io/v1
+          kind: XVSHNPostgreSQL
+        # we have to add functions declaration to postgresql
+        functions:
+          - container:
+              image: postgresql
+              runner:
+                endpoint: unix-abstract:crossplane/fn/default.sock
+            name: pgsql-func
+            type: Container
+        resources:
+          - base:
+            apiVersion: kubernetes.crossplane.io/v1alpha1
+        ```
+
+That's all - You can now run Your claims. This documentation and above workaround is just temporary solution, it should disappear once we actually implement composition functions. 
