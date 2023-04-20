@@ -42,18 +42,18 @@ func printFunctionIO(iof *xfnv1alpha1.FunctionIO, log logr.Logger) ([]byte, erro
 	return fnc, nil
 }
 
-func RunCommand(ctx *context.Context, input []byte, transforms []Transform) ([]byte, error) {
-	log := logr.FromContextOrDiscard(*ctx)
+func RunCommand(ctx context.Context, input []byte, transforms []Transform) ([]byte, error) {
+	log := logr.FromContextOrDiscard(ctx)
 
 	log.V(1).Info("Creating new runtime")
-	funcIO, err := NewRuntime(*ctx, input)
+	funcIO, err := NewRuntime(ctx, input)
 	if err != nil {
 		return []byte{}, err
 	}
 
 	for _, function := range transforms {
 		log.Info("Starting function", "name", function.Name)
-		err = Exec(*ctx, log, funcIO, function)
+		err = Exec(ctx, log, funcIO, function)
 		if err != nil {
 			return []byte{}, err
 		}

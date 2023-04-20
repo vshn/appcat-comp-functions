@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
@@ -28,20 +30,19 @@ var postgresFunctions = []runtime.Transform{
 }
 
 var (
-	Network = "unix"
-	Address = "@crossplane/fn/default.sock"
-	// for testing purposes, especially on MacOS it's much easier to create local socket than whole directory structure and permissions
-	//Address = "default.sock"
+	Network  string = "unix"
+	LogLevel int    = 1
 )
 
 type server struct {
 	pb.UnimplementedContainerizedFunctionRunnerServiceServer
+	ctx context.Context
 }
 
 func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*pb.RunFunctionResponse, error) {
 	switch in.Image {
 	case "postgresql":
-		fnio, err := runtime.RunCommand(&ctx, in.Input, postgresFunctions)
+		fnio, err := runtime.RunCommand(s.ctx, in.Input, postgresFunctions)
 		return &pb.RunFunctionResponse{
 			Output: fnio,
 		}, err
@@ -58,15 +59,44 @@ func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*p
 }
 
 func main() {
-	lis, err := net.Listen(Network, Address)
+	cntx := context.Background()
+	err := runtime.SetupLogging(vp.AI, &cntx, LogLevel)
+	if err != nil {
+		log.Fatal("logging broke")
+	}
+	_ = runtime.LogMetadata(cntx, vp.AI)
+
+	var AddressFlag = flag.String("socket", "@crossplane/fn/default.sock", "optional -> set where socket should be located")
+	flag.IntVar(&LogLevel, "loglevel", 1, "optional -> set log level [0,1]")
+	flag.Parse()
+
+	if err := cleanStart(*AddressFlag); err != nil {
+		log.Fatal(err)
+	}
+
+	lis, err := net.Listen(Network, *AddressFlag)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+
 	s := grpc.NewServer()
-	pb.RegisterContainerizedFunctionRunnerServiceServer(s, &server{})
+
+	pb.RegisterContainerizedFunctionRunnerServiceServer(s, &server{ctx: cntx})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 
+}
+
+// socket isn't removed after server stop listening and blocks another starts
+func cleanStart(socketName string) error {
+	if _, err := os.Stat(socketName); err == nil {
+		err := os.RemoveAll(socketName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
