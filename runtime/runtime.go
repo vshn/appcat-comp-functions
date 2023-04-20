@@ -85,7 +85,7 @@ func getKubeObjectFrom(ctx context.Context, resources *[]Resource, kon string) (
 	}
 	err := getFrom(ctx, resources, ko, kon)
 	if err != nil {
-		return nil, fmt.Errorf("cannot find resourcet: %w", err)
+		return nil, err
 	}
 
 	return ko, nil
