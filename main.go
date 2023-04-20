@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -12,6 +11,8 @@ import (
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var postgresFunctions = []runtime.Transform{
@@ -43,18 +44,23 @@ func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*p
 	switch in.Image {
 	case "postgresql":
 		fnio, err := runtime.RunCommand(s.ctx, in.Input, postgresFunctions)
+		if err != nil {
+			return &pb.RunFunctionResponse{
+				Output: fnio,
+			}, status.Errorf(codes.Aborted, "Can't process request for PostgreSQL")
+		}
 		return &pb.RunFunctionResponse{
 			Output: fnio,
-		}, err
+		}, nil
 	case "redis":
 		return &pb.RunFunctionResponse{
 			// return what was sent as it's currently not supported
 			Output: in.Input,
-		}, nil
+		}, status.Error(codes.Unimplemented, "Redis is not yet implemented")
 	default:
 		return &pb.RunFunctionResponse{
 			Output: []byte("Bad configuration"),
-		}, fmt.Errorf("unrecogised configuration")
+		}, status.Error(codes.NotFound, "Unknown request")
 	}
 }
 
@@ -62,7 +68,7 @@ func main() {
 	cntx := context.Background()
 	err := runtime.SetupLogging(vp.AI, &cntx, LogLevel)
 	if err != nil {
-		log.Fatal("logging broke")
+		log.Fatal("logging broke, exiting")
 	}
 	_ = runtime.LogMetadata(cntx, vp.AI)
 

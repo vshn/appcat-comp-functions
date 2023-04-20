@@ -20,7 +20,7 @@ import (
 
 var (
 	Network = "unix"
-	Address = "../default.sock"
+	Address = "../../default.sock"
 )
 
 func main() {

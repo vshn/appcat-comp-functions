@@ -6,7 +6,6 @@ import (
 
 	xfnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/urfave/cli/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -60,13 +59,4 @@ func RunCommand(ctx context.Context, input []byte, transforms []Transform) ([]by
 	}
 
 	return printFunctionIO(&funcIO.io, log)
-}
-
-// NewFunctionFlag returns the "function" cli flag.
-func NewFunctionFlag() *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:     "function",
-		Usage:    "Name of the function to run. If not provided, all functions will run.",
-		Required: false,
-	}
 }
