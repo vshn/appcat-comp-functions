@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	rt "runtime"
 	"time"
 
 	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
@@ -41,8 +42,9 @@ var postgresFunctions = []runtime.Transform{
 }
 
 var (
-	Network  = "unix"
-	LogLevel = 1
+	Network     = "unix"
+	AddressFlag = "@crossplane/fn/default.sock"
+	LogLevel    = 1
 )
 
 type server struct {
@@ -52,7 +54,6 @@ type server struct {
 
 func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*pb.RunFunctionResponse, error) {
 	ctx = logr.NewContext(ctx, s.logger)
-	_ = runtime.LogMetadata(ctx, AI)
 	switch in.Image {
 	case "postgresql":
 		fnio, err := runtime.RunCommand(ctx, in.Input, postgresFunctions)
@@ -77,19 +78,27 @@ func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*p
 }
 
 func main() {
+	flag.StringVar(&AddressFlag, "socket", "@crossplane/fn/default.sock", "optional -> set where socket should be located")
+	flag.IntVar(&LogLevel, "loglevel", 1, "optional -> set log level [0,1]")
+	flag.Parse()
 	logger, err := runtime.NewZapLogger(AI.AppName, AI.Version, LogLevel, true)
 	if err != nil {
 		log.Fatal("logging broke, exiting")
 	}
-	var AddressFlag = flag.String("socket", "@crossplane/fn/default.sock", "optional -> set where socket should be located")
-	flag.IntVar(&LogLevel, "loglevel", 1, "optional -> set log level [0,1]")
-	flag.Parse()
-
-	if err := cleanStart(*AddressFlag); err != nil {
+	logger.WithValues(
+		"version", AI.Version,
+		"date", AI.Date,
+		"go_os", rt.GOOS,
+		"go_arch", rt.GOARCH,
+		"go_version", rt.Version(),
+		"uid", os.Getuid(),
+		"gid", os.Getgid(),
+	).Info("Starting up " + AI.AppName)
+	if err := cleanStart(AddressFlag); err != nil {
 		log.Fatal(err)
 	}
 
-	lis, err := net.Listen(Network, *AddressFlag)
+	lis, err := net.Listen(Network, AddressFlag)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -101,15 +110,14 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
-
 }
 
 // socket isn't removed after server stop listening and blocks another starts
 func cleanStart(socketName string) error {
 	if _, err := os.Stat(socketName); err != nil {
-	    return err
+		return err
 	}
-    err := os.RemoveAll(socketName)
+	err := os.RemoveAll(socketName)
 	if err != nil {
 		return err
 	}
