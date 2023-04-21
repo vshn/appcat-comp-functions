@@ -114,11 +114,8 @@ func main() {
 
 // socket isn't removed after server stop listening and blocks another starts
 func cleanStart(socketName string) error {
-	if _, err := os.Stat(socketName); err != nil {
-		return err
-	}
-	err := os.RemoveAll(socketName)
-	if err != nil {
+	if _, err := os.Stat(socketName); err == nil {
+		err := os.RemoveAll(socketName)
 		return err
 	}
 
