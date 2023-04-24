@@ -11,7 +11,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.63.0
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.23.7
-	github.com/vshn/component-appcat/apis v0.0.0-20230331085454-9d11bb2726ff
+	github.com/vshn/component-appcat/apis v0.0.0-20230424124401-da40e5deada9
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.50.1
 	k8s.io/api v0.26.3
