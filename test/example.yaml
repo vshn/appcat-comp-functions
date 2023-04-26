@@ -47,6 +47,8 @@ observed:
                 - name: 'webhook'
                   webhookConfigs:
                     - url: 'http://example.com/'
+          encryption:
+            enabled: "true"
           backup:
             retention: 6
             schedule: 0 22 * * *
