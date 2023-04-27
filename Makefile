@@ -75,7 +75,7 @@ clean: kind-clean ## Cleans local build artifacts
 	rm -rf docs/node_modules $(docs_out_dir) dist .cache $(WORK_DIR)
 
 .PHONY: push-docker
-docker-push: build-docker ## Push docker image with the manager.
+push-docker: build-docker ## Push docker image with the manager.
 	docker push $(CONTAINER_IMG)
 
 $(golangci_bin): | $(go_bin)
