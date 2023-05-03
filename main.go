@@ -9,10 +9,12 @@ import (
 	rt "runtime"
 	"time"
 
-	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
-	"github.com/go-logr/logr"
+	sgv1 "github.com/vshn/appcat-comp-functions/apis/stackgres/v1"
 	vp "github.com/vshn/appcat-comp-functions/functions/vshn-postgres-func"
 	"github.com/vshn/appcat-comp-functions/runtime"
+
+	pb "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -28,12 +30,16 @@ var AI = runtime.AppInfo{
 
 var postgresFunctions = []runtime.Transform{
 	{
-		Name:          "url-connection-details",
+		Name:          "url-connection-detail",
 		TransformFunc: vp.AddUrlToConnectionDetails,
 	},
 	{
 		Name:          "user-alerting",
 		TransformFunc: vp.AddUserAlerting,
+	},
+	{
+		Name:          "restart",
+		TransformFunc: vp.TransformRestart,
 	},
 	{
 		Name:          "random-default-schedule",
@@ -105,6 +111,11 @@ func main() {
 	lis, err := net.Listen(Network, AddressFlag)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
+	}
+
+	err = runtime.AddToScheme(sgv1.SchemeBuilder.SchemeBuilder)
+	if err != nil {
+		log.Fatalf("failed register stackgres CRDs: %v", err)
 	}
 
 	s := grpc.NewServer()

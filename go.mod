@@ -15,7 +15,7 @@ require (
 	github.com/sethvargo/go-password v0.2.0
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.23.7
-	github.com/vshn/component-appcat/apis v0.0.0-20230425231346-1af5398ee159
+	github.com/vshn/component-appcat/apis v0.0.0-20230508083110-a8e04b7b9a13
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.50.1
 	k8s.io/api v0.26.3
@@ -74,7 +74,7 @@ require (
 	github.com/spf13/cobra v1.6.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasttemplate v1.2.2 // indirect
+	github.com/valyala/fasttemplate v1.2.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
