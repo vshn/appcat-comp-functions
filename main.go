@@ -89,7 +89,7 @@ func (s *server) RunFunction(ctx context.Context, in *pb.RunFunctionRequest) (*p
 
 func main() {
 	flag.StringVar(&AddressFlag, "socket", "@crossplane/fn/default.sock", "optional -> set where socket should be located")
-	flag.IntVar(&LogLevel, "loglevel", 1, "optional -> set log level [0,1]")
+	flag.IntVar(&LogLevel, "loglevel", 0, "optional -> set log level [0,1]")
 	flag.Parse()
 	logger, err := runtime.NewZapLogger(AI.AppName, AI.Version, LogLevel, true)
 	if err != nil {

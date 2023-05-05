@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	"github.com/sethvargo/go-password/password"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/vshn/appcat-comp-functions/runtime"
+
+	stackgresv1 "github.com/vshn/appcat-comp-functions/apis/stackgres/v1"
 	vshnv1 "github.com/vshn/component-appcat/apis/vshn/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 // AddPvcSecret adds a secret for the encrypted PVC for the  PostgreSQL instance.
@@ -35,21 +39,42 @@ func AddPvcSecret(ctx context.Context, iof *runtime.Runtime) runtime.Result {
 		return runtime.NewNormal()
 	}
 
-	if comp.Status.InstanceNamespace == "" {
-		return runtime.NewWarning(ctx, "Composite is missing instance namespace, skipping transformation")
-	}
-
 	log.Info("Adding secret to composite")
 
-	secret := &v1.Secret{}
+	cluster := &stackgresv1.SGCluster{}
+	err = iof.Desired.GetFromObject(ctx, cluster, "cluster")
+	if err != nil {
+		return runtime.NewFatalErr(ctx, "Cannot get SgCluster object", err)
+	}
 
+	cluster.Spec.Pods.PersistentVolume.StorageClass = pointer.String("ssd-encrypted")
+	err = iof.Desired.PutIntoObject(ctx, cluster, "cluster")
+
+	if err != nil {
+		return runtime.NewFatalErr(ctx, "Cannot edit SGCluster object", err)
+	}
+
+	pods := cluster.Spec.Instances
+
+	for i := 0; i < pods; i++ {
+		result := writeLuksSecret(ctx, iof, log, comp, i)
+		if result != nil {
+			return result
+		}
+	}
+
+	return runtime.NewNormal()
+}
+
+func writeLuksSecret(ctx context.Context, iof *runtime.Runtime, log logr.Logger, comp *vshnv1.VSHNPostgreSQL, i int) runtime.Result {
 	// luksSecretResourceName is the resource name defined in the composition
 	// This name is different from metadata.name of the same resource
 	// The value is hardcoded in the composition for each resource and due to crossplane limitation
 	// it cannot be matched to the metadata.name
-	luksSecretResourceName := comp.Name + "-luks-key"
+	luksSecretResourceName := fmt.Sprintf("%s-luks-key-%d", comp.Name, i)
 
-	err = iof.Observed.GetFromObject(ctx, secret, luksSecretResourceName)
+	secret := &v1.Secret{}
+	err := iof.Observed.GetFromObject(ctx, secret, luksSecretResourceName)
 	luksKey := ""
 	if err == runtime.ErrNotFound {
 		log.Info("Secret does not exist yet. Creating...")
@@ -66,8 +91,8 @@ func AddPvcSecret(ctx context.Context, iof *runtime.Runtime) runtime.Result {
 
 	secret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-data-%s-0-luks-key", comp.ObjectMeta.Labels["crossplane.io/composite"], comp.ObjectMeta.Labels["crossplane.io/composite"]),
-			Namespace: comp.Status.InstanceNamespace,
+			Name:      fmt.Sprintf("%s-data-%s-%d-luks-key", comp.ObjectMeta.Labels["crossplane.io/composite"], comp.ObjectMeta.Labels["crossplane.io/composite"], i),
+			Namespace: getInstanceNamespace(comp),
 		},
 		Data: map[string][]byte{
 			"luksKey": []byte(luksKey),
@@ -77,6 +102,5 @@ func AddPvcSecret(ctx context.Context, iof *runtime.Runtime) runtime.Result {
 	if err != nil {
 		return runtime.NewFatalErr(ctx, "Cannot add luks secret object", err)
 	}
-
-	return runtime.NewNormal()
+	return nil
 }
