@@ -6,8 +6,8 @@ replace github.com/deepmap/oapi-codegen => github.com/sljeff/oapi-codegen v1.5.1
 
 require (
 	github.com/crossplane-contrib/provider-kubernetes v0.7.0
-	github.com/crossplane/crossplane v1.11.2
-	github.com/crossplane/crossplane-runtime v0.19.2
+	github.com/crossplane/crossplane v1.12.1
+	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230330081344-bc8be4cd89f3
 	github.com/deepmap/oapi-codegen v0.0.0-00010101000000-000000000000
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/zapr v1.2.3
@@ -21,8 +21,8 @@ require (
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
-	sigs.k8s.io/controller-runtime v0.14.5
-	sigs.k8s.io/controller-tools v0.11.1
+	sigs.k8s.io/controller-runtime v0.14.6
+	sigs.k8s.io/controller-tools v0.11.3
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -81,7 +81,7 @@ require (
 	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
+	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
@@ -89,7 +89,7 @@ require (
 	golang.org/x/tools v0.6.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
+	google.golang.org/genproto v0.0.0-20221202195650-67e5cbc046fd // indirect
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
