@@ -33,3 +33,9 @@ KIND_IMAGE ?= docker.io/kindest/node:$(KIND_NODE_VERSION)
 KIND ?= go run sigs.k8s.io/kind
 KIND_KUBECONFIG ?= $(kind_dir)/kind-kubeconfig
 KIND_CLUSTER ?= $(PROJECT_NAME)
+
+
+
+## Stackgres CRDs
+STACKGRES_VERSION ?= 1.4.3
+STACKGRES_CRD_URL ?= https://gitlab.com/ongresinc/stackgres/-/raw/${STACKGRES_VERSION}/stackgres-k8s/src/common/src/main/resources/crds
