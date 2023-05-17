@@ -15,7 +15,7 @@ require (
 	github.com/sethvargo/go-password v0.2.0
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.23.7
-	github.com/vshn/component-appcat/apis v0.0.0-20230508083110-a8e04b7b9a13
+	github.com/vshn/component-appcat/apis v0.0.0-20230517093231-dae78fe889d5
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.50.1
 	k8s.io/api v0.26.3
