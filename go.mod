@@ -9,7 +9,7 @@ require (
 	github.com/crossplane/crossplane v1.11.2
 	github.com/crossplane/crossplane-runtime v0.19.2
 	github.com/deepmap/oapi-codegen v0.0.0-00010101000000-000000000000
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/zapr v1.2.3
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.63.0
 	github.com/sethvargo/go-password v0.2.0
