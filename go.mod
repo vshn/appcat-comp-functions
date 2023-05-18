@@ -18,8 +18,8 @@ require (
 	github.com/vshn/component-appcat/apis v0.0.0-20230508083110-a8e04b7b9a13
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.50.1
-	k8s.io/api v0.26.3
-	k8s.io/apimachinery v0.26.3
+	k8s.io/api v0.27.2
+	k8s.io/apimachinery v0.27.2
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
 	sigs.k8s.io/controller-runtime v0.14.5
 	sigs.k8s.io/controller-tools v0.11.1
