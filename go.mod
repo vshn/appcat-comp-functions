@@ -13,7 +13,7 @@ require (
 	github.com/go-logr/zapr v1.2.3
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.63.0
 	github.com/sethvargo/go-password v0.2.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.3
 	github.com/urfave/cli/v2 v2.23.7
 	github.com/vshn/component-appcat/apis v0.0.0-20230508083110-a8e04b7b9a13
 	go.uber.org/zap v1.24.0
