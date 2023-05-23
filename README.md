@@ -7,6 +7,9 @@
 
 [build]: https://github.com/vshn/appcat-comp-functions/actions?query=workflow%3ATest
 [releases]: https://github.com/vshn/appcat-comp-functions/releases
+
+:warning: This repository and its content has been moved to [appcat](https://github.com/vshn/appcat)
+
 ## Repository structure
 
 ```
